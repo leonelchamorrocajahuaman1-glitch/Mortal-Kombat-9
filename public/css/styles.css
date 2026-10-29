@@ -297,6 +297,12 @@ input:focus, select:focus { outline: none; border-color: var(--gold); box-shadow
 .chat-log li.system { color: var(--muted); font-style: italic; font-size: 13px; }
 .chat-form { display: flex; gap: 8px; }
 
+.arena { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--panel-edge); display: grid; gap: 12px; }
+.arena details summary { cursor: pointer; color: var(--gold); }
+.arena-frame { position: relative; width: 100%; aspect-ratio: 16 / 9; background: #000; border: 1px solid var(--gold-dim); box-shadow: 0 0 40px rgba(255, 90, 20, 0.15); }
+.arena-frame canvas { width: 100%; height: 100%; display: block; image-rendering: auto; }
+.arena-frame:fullscreen { border: 0; display: grid; place-items: center; }
+.arena-frame:fullscreen canvas { width: auto; height: 100%; max-width: 100%; aspect-ratio: 16 / 9; }
 .webstream { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--panel-edge); display: grid; gap: 12px; }
 .ws-host, .ws-guest { display: grid; gap: 12px; }
 .ws-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }

@@ -49,7 +49,8 @@ Dos navegadores Chromium **independientes** (contextos separados, sin almacenami
 
 | Ejecución | Resultado |
 |---|---|
-| `npm test` | 24/24 superadas |
+| `npm test` | 29/29 superadas (incluye la Arena: determinismo, mecánicas, KO al mejor de 3 y rollback con 20 % de pérdida y desorden, idéntico a la referencia) |
+| `npm run test:arena` | 10/10 superadas: combate entre dos navegadores por P2P y forzando el servidor; vida idéntica en ambas pantallas, 8 comparaciones de huella sin desincronización en cada modo |
 | `npm run test:stream` (transmisión WebRTC + ayudante real en `--dry-run`) | 9/9 superadas: vídeo y audio recibidos y reproduciéndose; tecla U → X y botón A + cruceta + stick → mando virtual en unos 40 ms en el mismo equipo; vídeo recuperado tras recargar; parada correcta |
 | `python helper/test_ayudante.py` | 4/4 superadas: estados, paquetes atrasados, soltar botones si se corta la red, rechazo de webs no permitidas |
 | `npm run test:e2e` contra el servidor local (HTTP) | 17/17 superadas |

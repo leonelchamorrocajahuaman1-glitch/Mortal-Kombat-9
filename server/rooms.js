@@ -70,7 +70,7 @@ export class RoomManager {
     const room = {
       code,
       hostId: null,
-      method: 'web-stream',
+      method: 'arena',
       players: new Map(),
       chat: [],
       createdAt: this.#now(),

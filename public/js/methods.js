@@ -4,6 +4,18 @@
 export const STEAM_APP_ID = 237110; // Mortal Kombat Komplete Edition
 
 export const METHOD_GUIDES = {
+  arena: {
+    streaming: false,
+    whoNeedsGame: 'none',
+    launch: null,
+    launchNote: 'No hace falta instalar nada: el combate se ejecuta en el navegador de cada jugador.',
+    steps: [
+      'Juego de lucha original de esta web (no es Mortal Kombat 9): personajes, escenario y código propios.',
+      'Los dos jugáis desde el navegador, sin Steam y sin instalar nada. Cada navegador ejecuta el combate y solo se envían las pulsaciones (netcode con rollback, como los juegos de lucha modernos).',
+      'Pulsad «Iniciar combate». Al mejor de 3 asaltos de 60 segundos.',
+    ],
+    note: 'Funciona con teclado o mando. Va por conexión directa (P2P) si vuestras redes lo permiten; si no, por el servidor, con más retardo.',
+  },
   'web-stream': {
     streaming: true,
     whoNeedsGame: 'host',
@@ -56,6 +68,7 @@ export const METHOD_GUIDES = {
     streaming: false,
     whoNeedsGame: 'both',
     launch: null,
+    launchNote: 'Abre RPCS3 en tu PC; este método no se lanza desde Steam.',
     steps: [
       'Ambos instaláis RPCS3 (rpcs3.net) y el firmware oficial de PS3 descargado de la web de Sony.',
       'Cada uno usa un volcado de su propio disco de MK9 para PS3.',

@@ -13,7 +13,8 @@
     "dev": "node --watch server/index.js",
     "test": "node --test",
     "test:e2e": "node scripts/e2e-browser.cjs",
-    "test:stream": "node scripts/e2e-stream.cjs"
+    "test:stream": "node scripts/e2e-stream.cjs",
+    "test:arena": "node scripts/e2e-arena.cjs"
   },
   "dependencies": {
     "ws": "^8.18.0"

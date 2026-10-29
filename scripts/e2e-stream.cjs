@@ -152,7 +152,8 @@ const VIRTUAL_PAD = () => {
       await G.page.fill('#player-name', 'Invitado');
       await G.page.click('#btn-play');
       await G.page.waitForSelector('#view-room:not([hidden])');
-      if ((await H.page.inputValue('#method-select')) !== 'web-stream') throw new Error('método por defecto distinto');
+      await H.page.selectOption('#method-select', 'web-stream');
+      await G.page.waitForSelector('#ws-guest:not([hidden])');
       await waitText(H.page, '#m-p2p', /ms/);
       return `sala ${code}`;
     });

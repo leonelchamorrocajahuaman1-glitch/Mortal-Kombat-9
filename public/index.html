@@ -74,6 +74,11 @@
         <h2 id="h-ways" class="section-title">Formas de jugar a MK9 con un amigo</h2>
         <p class="muted">Resumen honesto de lo investigado (octubre de 2026). Esta web os conecta y os guía; el combate ocurre fuera del navegador.</p>
         <div class="ways-grid">
+          <article class="way" data-status="yes">
+            <span class="way-status">Disponible ya · sin instalar nada</span>
+            <h3>Arena (juego original)</h3>
+            <p>Juego de lucha propio de esta web, con personajes originales: no es MK9. Los dos jugáis desde el navegador, sin Steam, con netcode con rollback. Elegid «Arena» en la sala.</p>
+          </article>
           <article class="way" data-status="no">
             <span class="way-status">No es posible</span>
             <h3>En el navegador</h3>
@@ -167,6 +172,23 @@
           <div class="game-actions">
             <a class="btn btn-primary" id="launch-game" href="steam://run/237110">Abrir MK9 en Steam</a>
             <span class="muted" id="launch-note"></span>
+          </div>
+
+          <!-- Arena: juego de lucha original en el navegador (solo con ese método) -->
+          <div class="arena" id="arena-box" hidden>
+            <div class="arena-frame" id="arena-frame">
+              <canvas id="arena-canvas" width="960" height="540" aria-label="Combate de la Arena"></canvas>
+            </div>
+            <div class="ws-row">
+              <button class="btn btn-primary" id="arena-start" type="button">Iniciar combate</button>
+              <button class="btn btn-ghost btn-sm" id="arena-fullscreen" type="button">Pantalla completa</button>
+              <span class="tag" id="arena-status">Sin combate</span>
+              <span class="small muted" id="arena-stats"></span>
+            </div>
+            <details class="small" open>
+              <summary>Controles de la Arena</summary>
+              <p class="muted">Teclado: <b>A/D</b> moverse · <b>W</b> saltar · <b>S</b> agacharse · <b>U</b> puñetazo · <b>J</b> o <b>K</b> patada · <b>L</b> bloquear · <b>I</b> proyectil. Agachado: puñetazo = gancho, patada = barrido. En el aire: patada. Mando: cruceta, <b>X</b> puñetazo, <b>A</b>/<b>B</b> patada, <b>RT</b> bloquear, <b>Y</b> proyectil. Puedes cambiarlos en «Controles».</p>
+            </details>
           </div>
 
           <!-- Transmisión desde esta web + mando virtual (solo con ese método) -->

@@ -14,7 +14,26 @@ Plataforma web de **salas privadas para organizar partidas online de Mortal Komb
 >
 > Proyecto no oficial y sin afiliación con Warner Bros. Games ni NetherRealm Studios. Cada jugador necesita su propia copia legítima del juego.
 
-## Jugar ya: «Jugar desde esta web» (recomendado)
+## Jugar ya sin tener MK9: la Arena
+
+Si ninguno de los dos tiene Mortal Kombat 9, **no existe una forma legal de jugarlo**: alguien necesita una copia del juego. Para poder jugar igualmente, la web incluye la **Arena**, un **juego de lucha original**: personajes, escenario y código propios, sin archivos de MK9.
+
+- **Sin instalar nada, sin Steam y gratis.** Solo un navegador moderno (Chrome, Edge o Firefox) y teclado o mando.
+- **Online de verdad, sin streaming.** Cada navegador ejecuta el combate y solo se envían las pulsaciones. Usa *rollback netcode*, como los juegos de lucha modernos: va por la conexión directa P2P y, si vuestras redes no la permiten, por el servidor.
+- **Cómo jugar:** crea la sala, envía el enlace, pulsa **Iniciar combate** (modo **Arena**, el predeterminado). Al mejor de 3 asaltos.
+- **Teclado:**
+  - **A/D** moverse · **W** saltar · **S** agacharse
+  - **U** puñetazo · **J/K** patada · **L** bloquear · **I** proyectil
+  - Agachado: puñetazo = gancho, patada = barrido
+- **Mando:** cruceta, **X** puñetazo, **A/B** patada, **RT** bloquear, **Y** proyectil.
+
+**Comprobado (`npm run test:arena` y `node --test`):**
+- dos navegadores independientes juegan un combate y ven exactamente la misma pelea, tanto por P2P como por el servidor;
+- el netcode coincide con una partida de referencia aunque se pierda el 20 % de los paquetes y lleguen desordenados.
+
+**Pendiente:** probarlo entre dos ordenadores en redes distintas. No hay controles táctiles para móvil.
+
+## Jugar a MK9 cuando el anfitrión tenga el juego: «Jugar desde esta web»
 
 Es la forma de jugar que no depende de los servidores de Warner Bros. ni de que el amigo tenga el juego:
 
@@ -122,6 +141,7 @@ La pantalla, el mando del invitado y el mando ViGEm estaban simulados. **Falta v
 | `npm run dev` | Arranca el servidor y lo reinicia al guardar cambios |
 | `npm test` | Pruebas automáticas del servidor (servidor real + clientes WebSocket reales) |
 | `npm run test:e2e` | Prueba con dos navegadores reales; requiere Playwright (ver [Pruebas](#pruebas)) |
+| `npm run test:arena` | Combate de la Arena entre dos navegadores (P2P y por el servidor); requiere Playwright |
 | `npm run test:stream` | Transmisión + mando virtual con el ayudante en modo prueba; requiere Playwright y `pip install "websockets>=13"` |
 
 **Probar solo en tu PC:** abre una ventana normal y otra de incógnito. Crea la sala en una y únete con el código en la otra. Cada ventana es un jugador.
@@ -289,7 +309,7 @@ No se incluyen, descargan ni modifican archivos del juego, ni se elude ninguna p
 
 ## Pruebas
 
-**Automáticas del servidor:** 24 pruebas: servidor real con clientes WebSocket reales, y el proveedor TURN con respuestas simuladas.
+**Automáticas:** 29 pruebas (servidor, TURN y Arena): servidor real con clientes WebSocket reales, y el proveedor TURN con respuestas simuladas.
 ```bash
 npm test
 ```
@@ -366,7 +386,9 @@ Detalles, y la lista para probar con dos PCs reales, en [`docs/PRUEBAS.md`](docs
 ├── helper/
 │   ├── mk9-ayudante.py     Ayudante del mando virtual (PC del anfitrión, Windows)
 │   └── test_ayudante.py    Pruebas del ayudante (python helper/test_ayudante.py)
+├── public/js/arena/        Arena: simulación (sim.js), rollback (netcode.js), dibujo (render.js) y controlador (arena.js)
 ├── public/js/stream.js     Transmisión WebRTC y enlace con el ayudante
+├── scripts/e2e-arena.cjs   Combate de la Arena entre dos navegadores (npm run test:arena)
 ├── scripts/e2e-browser.cjs Prueba con dos navegadores (npm run test:e2e)
 ├── scripts/e2e-stream.cjs  Prueba de transmisión + mando virtual (npm run test:stream)
 ├── render.yaml             Despliegue en Render (Blueprint)

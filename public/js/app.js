@@ -5,6 +5,7 @@ import { METHOD_GUIDES } from './methods.js';
 import { Connection } from './net.js';
 import { PeerLink, probeIce } from './rtc.js';
 import { HelperLink, StreamLink } from './stream.js';
+import { ArenaController } from './arena/arena.js';
 
 const $ = (sel) => document.querySelector(sel);
 const STORE = { token: 'mk9lobby.token', name: 'mk9lobby.name' };
@@ -151,6 +152,7 @@ conn.addEventListener('message', ({ detail: msg }) => {
     case 'signal':
       if (msg.data?.kind === 'input') setPeerInput(msg.data.active, 'servidor');
       else if (msg.data?.kind === 'pad') onGuestPad(msg.data, 'servidor');
+      else if (msg.data?.kind === 'arena') onArenaMsg(msg.data.msg);
       else if (typeof msg.data?.kind === 'string' && msg.data.kind.startsWith('stream-')) ensureStream()?.handleSignal(msg.data);
       else if (msg.data?.kind === 'restart') maybeStartPeer(true);
       else ensurePeer()?.handleSignal(msg.data);
@@ -240,6 +242,7 @@ function ensurePeer() {
   peer.addEventListener('data', ({ detail }) => {
     if (detail.k === 'input') setPeerInput(detail.active, 'P2P');
     else if (detail.k === 'pad') onGuestPad(detail, 'P2P');
+    else if (typeof detail.k === 'string' && detail.k.startsWith('ar')) onArenaMsg(detail);
   });
   return peer;
 }
@@ -410,7 +413,8 @@ requestAnimationFrame(padLoop);
 
 // El invitado juega con el teclado: evita que las flechas o el espacio desplacen la página.
 window.addEventListener('keydown', (e) => {
-  if (!isWebStream() || isRoomHost() || !state.room) return;
+  if (!state.room) return;
+  if (!(isWebStream() && !isRoomHost()) && !(isArena() && arena.running)) return;
   if (e.target instanceof HTMLElement && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
   if (Object.values(input.bindings.keyboard).includes(e.code)) e.preventDefault();
 });
@@ -480,6 +484,93 @@ setInterval(async () => {
   }
 }, 1000);
 
+// ---------------------------------------------------------------- Arena (juego de lucha original)
+
+const isArena = () => state.room?.method === 'arena';
+const arena = new ArenaController({
+  canvas: $('#arena-canvas'),
+  input,
+  // Entradas: P2P si está abierto; si no, por el servidor.
+  send: (msg, { viaP2P }) => {
+    if (viaP2P && peer?.isOpen) peer.send(msg);
+    else conn.send('signal', { data: { kind: 'arena', msg } });
+  },
+  isP2P: () => !!peer?.isOpen,
+});
+let arenaId = null;
+
+// Mensajes de control (iniciar, pedir, parar): siempre por el servidor, que no pierde mensajes.
+const arenaControl = (msg) => conn.send('signal', { data: { kind: 'arena', msg } });
+
+function arenaNames() {
+  const host = state.room.players.find((p) => p.id === state.room.hostId);
+  const guest = state.room.players.find((p) => p.id !== state.room.hostId);
+  return [host?.name ?? 'Brasa', guest?.name ?? 'Escarcha'];
+}
+
+// Retardo de entrada según la latencia: menos rollback visible con conexiones lentas.
+function arenaDelay() {
+  const rtt = peer?.state === 'connected' && peer.rtt != null ? peer.rtt : state.relayRtt ?? 120;
+  return Math.max(2, Math.min(6, Math.round(rtt / 2 / (1000 / 60)) + 1));
+}
+
+function startArenaAsHost() {
+  if (!rival()?.connected) {
+    toast('Espera a que tu amigo esté conectado a la sala.');
+    return;
+  }
+  arenaId = `${Date.now()}`;
+  const delay = arenaDelay();
+  arenaControl({ k: 'ar-start', id: arenaId, delay });
+  arena.start({ local: 0, delay, names: arenaNames() });
+}
+
+function onArenaMsg(msg) {
+  if (!msg || typeof msg !== 'object' || !isArena()) return;
+  if (msg.k === 'ar') arena.receive(msg);
+  else if (msg.k === 'ar-req' && isRoomHost()) startArenaAsHost();
+  else if (msg.k === 'ar-start' && !isRoomHost() && msg.id !== arenaId) {
+    arenaId = msg.id;
+    arena.start({ local: 1, delay: Math.max(2, Math.min(8, msg.delay | 0)), names: arenaNames() });
+  } else if (msg.k === 'ar-stop') arena.stop('Tu rival ha detenido el combate.');
+}
+
+$('#arena-start').addEventListener('click', () => {
+  if (isRoomHost()) startArenaAsHost();
+  else if (rival()?.connected) {
+    arenaControl({ k: 'ar-req' });
+    toast('Petición enviada: el combate empieza en cuanto llegue al anfitrión.');
+  }
+  $('#arena-canvas').focus?.();
+});
+$('#arena-fullscreen').addEventListener('click', () => $('#arena-frame').requestFullscreen?.().catch(() => {}));
+arena.addEventListener('state', renderArena);
+arena.addEventListener('desync', () => toast('Desincronización detectada en la Arena. Pulsad «Revancha».', 'error'));
+
+function renderArena() {
+  const box = $('#arena-box');
+  box.hidden = !isArena();
+  if (box.hidden) return;
+  const btn = $('#arena-start');
+  btn.disabled = arena.running || !rival()?.connected;
+  btn.textContent = arena.session && !arena.running ? 'Revancha' : 'Iniciar combate';
+  const side = arena.local === 0 ? 'izquierda' : 'derecha';
+  if (arena.running) setTag('#arena-status', `En combate · juegas a la ${side}`, 'ok');
+  else if (!rival()?.connected) setTag('#arena-status', 'Esperando a tu rival', 'warn');
+  else setTag('#arena-status', arena.session ? 'Combate terminado' : 'Listos para combatir', 'gold');
+}
+
+setInterval(() => {
+  if (!isArena() || !arena.session) return;
+  const st = arena.session.stats;
+  $('#arena-stats').textContent = [
+    `retardo ${arena.session.delay} f`,
+    `rollbacks ${st.rollbacks} (máx. ${st.maxRolled} f)`,
+    `vía ${peer?.isOpen ? 'P2P' : 'servidor'}`,
+    st.desync ? 'DESINCRONIZADO' : `${st.checks} comprobaciones OK`,
+  ].join(' · ');
+}, 500);
+
 // ---------------------------------------------------------------- prueba de mandos en vivo
 
 let lastInputSent = 0;
@@ -542,6 +633,9 @@ function renderConnPill() {
 function onRoomChanged() {
   const other = rival();
   syncWebStream(other);
+  if (arena.running && (!isArena() || !other?.connected)) {
+    arena.stop(isArena() ? 'Tu rival se ha desconectado: combate cancelado.' : 'Combate detenido: el anfitrión cambió de modo.');
+  }
   if (peer && (!other || !other.connected || peerFor !== other.id)) closePeer();
   maybeStartPeer();
   renderRoom();
@@ -708,12 +802,13 @@ function renderGameArea() {
   steps.replaceChildren(...guide.steps.map((s) => el('li', {}, s)), el('li', { class: 'note' }, guide.note));
 
   renderWebStream();
+  renderArena();
 
   const launch = $('#launch-game');
   const note = $('#launch-note');
   if (!guide.launch) {
     launch.hidden = true;
-    note.textContent = 'Abre RPCS3 en tu PC; este método no se lanza desde Steam.';
+    note.textContent = guide.launchNote ?? '';
   } else {
     launch.hidden = false;
     launch.href = guide.launch;
