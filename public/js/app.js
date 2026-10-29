@@ -4,6 +4,7 @@ import { ACTIONS, InputManager, describeBinding } from './controls.js';
 import { METHOD_GUIDES } from './methods.js';
 import { Connection } from './net.js';
 import { PeerLink, probeIce } from './rtc.js';
+import { HelperLink, StreamLink } from './stream.js';
 
 const $ = (sel) => document.querySelector(sel);
 const STORE = { token: 'mk9lobby.token', name: 'mk9lobby.name' };
@@ -149,6 +150,8 @@ conn.addEventListener('message', ({ detail: msg }) => {
       break;
     case 'signal':
       if (msg.data?.kind === 'input') setPeerInput(msg.data.active, 'servidor');
+      else if (msg.data?.kind === 'pad') onGuestPad(msg.data, 'servidor');
+      else if (typeof msg.data?.kind === 'string' && msg.data.kind.startsWith('stream-')) ensureStream()?.handleSignal(msg.data);
       else if (msg.data?.kind === 'restart') maybeStartPeer(true);
       else ensurePeer()?.handleSignal(msg.data);
       break;
@@ -236,6 +239,7 @@ function ensurePeer() {
   peer.addEventListener('rtt', () => renderMetrics());
   peer.addEventListener('data', ({ detail }) => {
     if (detail.k === 'input') setPeerInput(detail.active, 'P2P');
+    else if (detail.k === 'pad') onGuestPad(detail, 'P2P');
   });
   return peer;
 }
@@ -290,6 +294,191 @@ $('#retry-p2p').addEventListener('click', () => {
 setInterval(() => {
   if (rival()?.connected && conn.isOpen) conn.send('relay-ping', { t: performance.now() });
 }, 2000);
+
+// ---------------------------------------------------------------- transmisión desde la web + mando virtual
+
+let stream = null; // StreamLink
+const helper = new HelperLink();
+const padTx = { seq: Date.now(), lastKey: '', lastSentAt: 0, route: '' }; // invitado
+const padRx = { count: 0, lastAt: 0, route: '' }; // anfitrión
+let rivalWasConnected = false;
+const video = $('#stream-video');
+
+const isWebStream = () => state.room?.method === 'web-stream';
+const isRoomHost = () => !!state.room && state.room.hostId === state.playerId;
+
+function ensureStream() {
+  if (stream && stream.state !== 'closed') return stream;
+  if (!state.welcome) return null;
+  stream = new StreamLink({
+    iceServers: state.welcome.iceServers,
+    sendSignal: (data) => conn.send('signal', { data }),
+  });
+  stream.addEventListener('state', renderWebStream);
+  stream.addEventListener('remote-stream', ({ detail }) => {
+    video.srcObject = detail;
+    video.play().catch(() => {});
+    $('#video-unmute').hidden = !video.muted;
+    renderWebStream();
+  });
+  stream.addEventListener('stopped', () => {
+    video.srcObject = null;
+    renderWebStream();
+  });
+  return stream;
+}
+
+// Ajusta transmisión y ayudante a los cambios de la sala.
+function syncWebStream(other) {
+  const active = isWebStream() && isRoomHost();
+  if (active) helper.enable();
+  else helper.disable();
+  const connected = !!other?.connected;
+  if (!isWebStream() || !other) {
+    if (stream && stream.state !== 'closed') stream.stop();
+  } else if (connected && !rivalWasConnected && stream?.role === 'host' && stream.localStream) {
+    // El invitado volvió (recarga o corte de red): se le vuelve a ofrecer la misma captura.
+    stream.startHost(stream.localStream).catch(() => {});
+  }
+  if (rivalWasConnected !== connected) helper.send({ t: 'reset' });
+  rivalWasConnected = connected;
+}
+
+helper.addEventListener('state', () => {
+  if (helper.state === 'ok') helper.send({ t: 'reset' });
+  renderWebStream();
+});
+$('#helper-retry').addEventListener('click', () => helper.retryNow());
+
+$('#stream-start').addEventListener('click', async () => {
+  if (!rival()?.connected) {
+    toast('Espera a que tu amigo esté conectado a la sala.');
+    return;
+  }
+  try {
+    const media = await StreamLink.capture();
+    if (!media.getAudioTracks().length) {
+      toast('Se transmite sin sonido. Para incluirlo, comparte la pantalla completa y marca «Compartir audio del sistema».');
+    }
+    await ensureStream().startHost(media);
+  } catch (err) {
+    if (err?.name === 'NotAllowedError') toast('Has cancelado la selección de pantalla.');
+    else toast(err?.message ?? String(err), 'error');
+  }
+  renderWebStream();
+});
+$('#stream-stop').addEventListener('click', () => stream?.stop());
+
+$('#video-unmute').addEventListener('click', () => {
+  video.muted = false;
+  video.play().catch(() => {});
+  $('#video-unmute').hidden = true;
+});
+$('#video-fullscreen').addEventListener('click', () => {
+  $('#video-frame').requestFullscreen?.().catch(() => {});
+});
+
+// Anfitrión: el mando del invitado va al ayudante, que mueve el mando virtual del jugador 2.
+function onGuestPad(d, route) {
+  if (!isRoomHost() || !isWebStream()) return;
+  padRx.count += 1;
+  padRx.lastAt = performance.now();
+  padRx.route = route;
+  helper.send({ t: 'state', seq: d.seq, b: d.b, lt: d.lt, rt: d.rt, lx: d.lx, ly: d.ly, rx: d.rx, ry: d.ry });
+}
+
+// Invitado: envía el estado completo del mando en cada cambio y cada 100 ms (P2P) o 250 ms (servidor).
+function padLoop() {
+  requestAnimationFrame(padLoop);
+  if (!isWebStream() || isRoomHost() || !rival()?.connected || !conn.isOpen) return;
+  const s = input.xboxState();
+  const key = `${s.b}|${s.lt}|${s.rt}|${s.lx}|${s.ly}|${s.rx}|${s.ry}`;
+  const now = performance.now();
+  const viaP2P = !!peer?.isOpen;
+  const since = now - padTx.lastSentAt;
+  const changed = key !== padTx.lastKey;
+  if (!((changed && since >= (viaP2P ? 0 : 50)) || since > (viaP2P ? 100 : 250))) return;
+  padTx.seq += 1;
+  const msg = { k: 'pad', seq: padTx.seq, ...s };
+  if (viaP2P) peer.send(msg);
+  else conn.send('signal', { data: { kind: 'pad', ...msg } });
+  padTx.lastKey = key;
+  padTx.lastSentAt = now;
+  padTx.route = viaP2P ? 'P2P' : 'servidor';
+}
+requestAnimationFrame(padLoop);
+
+// El invitado juega con el teclado: evita que las flechas o el espacio desplacen la página.
+window.addEventListener('keydown', (e) => {
+  if (!isWebStream() || isRoomHost() || !state.room) return;
+  if (e.target instanceof HTMLElement && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
+  if (Object.values(input.bindings.keyboard).includes(e.code)) e.preventDefault();
+});
+
+const streamStats = { bytes: 0, at: 0 };
+async function renderStreamStats() {
+  const s = await stream?.stats();
+  if (!s) return '';
+  const kbps = streamStats.at && s.at > streamStats.at ? Math.round(((s.bytes - streamStats.bytes) * 8) / (s.at - streamStats.at)) : null;
+  streamStats.bytes = s.bytes;
+  streamStats.at = s.at;
+  return [
+    s.width ? `${s.width}×${s.height}` : null,
+    s.fps != null ? `${Math.round(s.fps)} fps` : null,
+    kbps != null ? `${(kbps / 1000).toFixed(1)} Mbit/s` : null,
+    s.jitterMs != null ? `búfer ${s.jitterMs} ms` : null,
+  ].filter(Boolean).join(' · ');
+}
+
+function setTag(id, text, level) {
+  const t = $(id);
+  t.textContent = text;
+  t.className = `tag ${level}`;
+}
+
+function renderWebStream() {
+  const box = $('#webstream');
+  box.hidden = !isWebStream();
+  if (box.hidden) return;
+  const host = isRoomHost();
+  $('#ws-host').hidden = !host;
+  $('#ws-guest').hidden = host;
+  const live = stream?.state === 'live';
+
+  if (host) {
+    if (helper.state === 'ok' && helper.mode === 'vigem') setTag('#helper-status', 'Conectado · mando virtual activo', 'ok');
+    else if (helper.state === 'ok') setTag('#helper-status', 'Conectado en modo prueba (sin mando virtual)', 'warn');
+    else setTag('#helper-status', 'No detectado', 'bad');
+    $('#helper-help').hidden = helper.state === 'ok';
+    const transmitting = stream?.role === 'host' && ['connecting', 'live'].includes(stream.state);
+    $('#stream-start').hidden = transmitting;
+    $('#stream-stop').hidden = !transmitting;
+    if (!transmitting) $('#stream-host-stats').textContent = stream?.state === 'failed' ? 'La conexión de vídeo falló (red). Prueba de nuevo o configura TURN.' : '';
+    else if (!live) $('#stream-host-stats').textContent = 'Conectando con tu amigo…';
+    const fresh = performance.now() - padRx.lastAt < 1500;
+    setTag('#guest-pad-status', fresh ? `Recibiendo (vía ${padRx.route})` : 'Sin datos', fresh ? 'ok' : 'warn');
+    $('#guest-pad-count').textContent = padRx.count ? `${padRx.count} paquetes` : '';
+  } else {
+    const hasVideo = !!video.srcObject && live;
+    $('#video-empty').hidden = hasVideo;
+    $('#video-empty').textContent = stream?.state === 'failed'
+      ? 'No se pudo recibir el vídeo: vuestras redes no permiten la conexión directa. El anfitrión debe configurar TURN (ver «Tu red»).'
+      : 'Esperando a que el anfitrión transmita su pantalla…';
+    if (!hasVideo) $('#video-unmute').hidden = true;
+    const sending = performance.now() - padTx.lastSentAt < 1000;
+    setTag('#my-pad-status', sending ? `Tu mando → anfitrión (vía ${padTx.route})` : 'Tu mando: en espera', sending ? 'ok' : 'warn');
+    if (!hasVideo) $('#stream-guest-stats').textContent = '';
+  }
+}
+
+setInterval(async () => {
+  if (!isWebStream()) return;
+  renderWebStream();
+  if (stream?.state === 'live') {
+    const text = await renderStreamStats();
+    $(isRoomHost() ? '#stream-host-stats' : '#stream-guest-stats').textContent = text;
+  }
+}, 1000);
 
 // ---------------------------------------------------------------- prueba de mandos en vivo
 
@@ -352,6 +541,7 @@ function renderConnPill() {
 
 function onRoomChanged() {
   const other = rival();
+  syncWebStream(other);
   if (peer && (!other || !other.connected || peerFor !== other.id)) closePeer();
   maybeStartPeer();
   renderRoom();
@@ -516,6 +706,8 @@ function renderGameArea() {
 
   const steps = $('#method-steps');
   steps.replaceChildren(...guide.steps.map((s) => el('li', {}, s)), el('li', { class: 'note' }, guide.note));
+
+  renderWebStream();
 
   const launch = $('#launch-game');
   const note = $('#launch-note');

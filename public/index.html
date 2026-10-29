@@ -168,6 +168,47 @@
             <a class="btn btn-primary" id="launch-game" href="steam://run/237110">Abrir MK9 en Steam</a>
             <span class="muted" id="launch-note"></span>
           </div>
+
+          <!-- Transmisión desde esta web + mando virtual (solo con ese método) -->
+          <div class="webstream" id="webstream" hidden>
+            <div class="ws-host" id="ws-host" hidden>
+              <div class="ws-row">
+                <span class="mini-label">1 · Ayudante del mando virtual</span>
+                <span class="tag" id="helper-status">Sin conectar</span>
+                <a class="btn btn-ghost btn-sm" href="/descargas/mk9-ayudante.py" download>Descargar ayudante (Windows)</a>
+                <button class="btn btn-ghost btn-sm" id="helper-retry" type="button">Reintentar</button>
+              </div>
+              <p class="muted small" id="helper-help">Necesitas Python 3 (python.org, marca «Add python.exe to PATH»). Abre el archivo descargado con doble clic y deja su ventana abierta. Si el navegador pregunta si esta web puede acceder a tu red local, pulsa «Permitir».</p>
+              <div class="ws-row">
+                <span class="mini-label">2 · Tu pantalla</span>
+                <button class="btn btn-primary btn-sm" id="stream-start" type="button">Transmitir mi pantalla</button>
+                <button class="btn btn-danger btn-sm" id="stream-stop" type="button" hidden>Detener transmisión</button>
+                <span class="small muted" id="stream-host-stats"></span>
+              </div>
+              <div class="ws-row">
+                <span class="mini-label">3 · Mando del invitado</span>
+                <span class="tag" id="guest-pad-status">Sin datos</span>
+                <span class="small muted" id="guest-pad-count"></span>
+              </div>
+              <details class="small">
+                <summary>Botones del mando virtual (jugador 2)</summary>
+                <p class="muted">El mando del invitado llega tal cual (distribución Xbox). Con teclado: ↑↓←→ cruceta · 1 = X · 2 = Y · 3 = A · 4 = B · Bloquear = RT · Agarre = LB · Cambiar postura = RB · Relevo = Back · Pausa = Start. Si en MK9 no coinciden, cámbialos en Opciones → Controles para el jugador 2.</p>
+              </details>
+            </div>
+
+            <div class="ws-guest" id="ws-guest" hidden>
+              <div class="video-frame" id="video-frame">
+                <video id="stream-video" playsinline autoplay muted></video>
+                <div class="video-empty" id="video-empty">Esperando a que el anfitrión transmita su pantalla…</div>
+                <button class="btn btn-ice btn-sm video-unmute" id="video-unmute" type="button" hidden>Activar sonido</button>
+              </div>
+              <div class="ws-row">
+                <button class="btn btn-ghost btn-sm" id="video-fullscreen" type="button">Pantalla completa</button>
+                <span class="tag" id="my-pad-status">Tu mando: en espera</span>
+                <span class="small muted" id="stream-guest-stats"></span>
+              </div>
+            </div>
+          </div>
         </section>
 
         <section class="panel" aria-labelledby="h-input">

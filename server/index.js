@@ -13,7 +13,9 @@ import { RoomError, RoomManager } from './rooms.js';
 import { SessionStore } from './sessions.js';
 import { createIceProvider } from './turn.js';
 
-const PUBLIC_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'public');
+const ROOT_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const PUBLIC_DIR = path.join(ROOT_DIR, 'public');
+const HELPER_FILE = path.join(ROOT_DIR, 'helper', 'mk9-ayudante.py');
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -27,7 +29,8 @@ const MIME = {
 };
 
 // Mensajes permitidos por segundo y por conexión (con ráfaga).
-const RATE = { perSecond: 30, burst: 60 };
+// El mando del invitado puede ir por el servidor (hasta 20/s) si falla el P2P.
+const RATE = { perSecond: 60, burst: 120 };
 
 // Cabeceras de seguridad para todas las respuestas HTTP.
 const SECURITY_HEADERS = {
@@ -82,6 +85,24 @@ export function startServer(options = {}) {
   const server = http.createServer((req, res) => {
     if (req.method !== 'GET' && req.method !== 'HEAD') {
       res.writeHead(405).end();
+      return;
+    }
+    if (req.url === '/descargas/mk9-ayudante.py') {
+      // Ayudante del mando virtual para el PC del anfitrión (ver helper/).
+      createReadStream(HELPER_FILE)
+        .on('open', () =>
+          res.writeHead(200, {
+            ...SECURITY_HEADERS,
+            'Content-Type': 'text/x-python; charset=utf-8',
+            'Content-Disposition': 'attachment; filename="mk9-ayudante.py"',
+            'Cache-Control': 'no-cache',
+          }),
+        )
+        .on('error', () => {
+          if (!res.headersSent) res.writeHead(404);
+          res.end();
+        })
+        .pipe(res);
       return;
     }
     if (req.url === '/health') {

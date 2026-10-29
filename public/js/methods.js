@@ -4,6 +4,19 @@
 export const STEAM_APP_ID = 237110; // Mortal Kombat Komplete Edition
 
 export const METHOD_GUIDES = {
+  'web-stream': {
+    streaming: true,
+    whoNeedsGame: 'host',
+    launch: `steam://run/${STEAM_APP_ID}`,
+    steps: [
+      'Solo el anfitrión necesita MK9 (Steam, Windows). El invitado solo necesita este navegador y su mando o teclado: no instala nada.',
+      'Anfitrión: descarga el ayudante (abajo), instala Python 3 si no lo tienes y abre el ayudante con doble clic. La primera vez instala el controlador ViGEmBus: acéptalo.',
+      'Anfitrión: abre MK9 en modo ventana o ventana sin bordes y entra en un combate versus local. El jugador 2 será el mando virtual del ayudante.',
+      'Anfitrión: pulsa «Transmitir mi pantalla» y elige la ventana de MK9 (o la pantalla entera con «Compartir audio del sistema» para tener sonido).',
+      'Invitado: el juego aparece aquí. Tu mando o teclado controla al jugador 2.',
+    ],
+    note: 'Es streaming: el juego solo se ejecuta en el PC del anfitrión y el invitado recibe vídeo (añade latencia, como Parsec). Probado entre navegadores con una pantalla y un mando simulados; el mando virtual en Windows con MK9 está pendiente de vuestra primera prueba.',
+  },
   'steam-online': {
     streaming: false,
     whoNeedsGame: 'both',

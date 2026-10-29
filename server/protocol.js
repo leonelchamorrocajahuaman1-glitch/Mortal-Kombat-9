@@ -32,6 +32,7 @@ export const SERVER = Object.freeze({
 
 // Formas reales de conectar dos copias de MK9. La web solo organiza; el juego hace el resto.
 export const METHODS = Object.freeze({
+  'web-stream': { label: 'Jugar desde esta web: transmisión + mando virtual (beta)', streaming: true },
   'steam-online': { label: 'Online oficial de MK9 (Steam)', streaming: false },
   'remote-play': { label: 'Steam Remote Play Together', streaming: true },
   parsec: { label: 'Parsec', streaming: true },

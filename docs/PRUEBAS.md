@@ -49,7 +49,9 @@ Dos navegadores Chromium **independientes** (contextos separados, sin almacenami
 
 | Ejecución | Resultado |
 |---|---|
-| `npm test` | 23/23 superadas |
+| `npm test` | 24/24 superadas |
+| `npm run test:stream` (transmisión WebRTC + ayudante real en `--dry-run`) | 9/9 superadas: vídeo y audio recibidos y reproduciéndose; tecla U → X y botón A + cruceta + stick → mando virtual en unos 40 ms en el mismo equipo; vídeo recuperado tras recargar; parada correcta |
+| `python helper/test_ayudante.py` | 4/4 superadas: estados, paquetes atrasados, soltar botones si se corta la red, rechazo de webs no permitidas |
 | `npm run test:e2e` contra el servidor local (HTTP) | 17/17 superadas |
 | `npm run test:e2e` tras un proxy TLS local (HTTPS + `wss://`, `NODE_ENV=production`, como el balanceador de Render) | 16/16 superadas (la prueba de reinicio se omite porque necesita controlar el servidor local) |
 | Instalación desde cero (`git clone` + `npm ci` + `npm test`) | Superada |
@@ -78,6 +80,13 @@ Hacedla con un amigo en **redes distintas**: otra casa, o uno de los dos con dat
 5. [ ] El chat funciona en los dos sentidos.
 6. [ ] Mando físico: aparece en «Controles» y la prueba en vivo se ve en el otro PC. Modelo de mando: ______
 7. [ ] Desactivar el Wi-Fi de B 10 s: A ve la cuenta atrás y B vuelve solo.
+
+### Jugar desde esta web (anfitrión con MK9)
+
+- [ ] El ayudante muestra «modo vigem» y la sala dice «Conectado · mando virtual activo».
+- [ ] En el «Panel de control → Dispositivos» de Windows aparece un mando de Xbox 360 nuevo.
+- [ ] El invitado ve el juego. Latencia percibida: ______
+- [ ] En versus local, el jugador 2 responde al mando o teclado del invitado.
 
 ### Juego
 

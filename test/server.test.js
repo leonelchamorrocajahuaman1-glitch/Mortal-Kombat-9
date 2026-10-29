@@ -307,3 +307,12 @@ test('entrega los servidores ICE del proveedor y /health indica si hay TURN', as
   ws.close();
   await srv.close();
 });
+
+test('sirve el ayudante del mando virtual como descarga', async () => {
+  const res = await fetch(`${httpBase}/descargas/mk9-ayudante.py`);
+  assert.equal(res.status, 200);
+  assert.match(res.headers.get('content-disposition'), /attachment; filename="mk9-ayudante.py"/);
+  const body = await res.text();
+  assert.match(body, /VX360Gamepad/);
+  assert.match(body, /DEFAULT_PORT = 47800/);
+});

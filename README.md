@@ -14,6 +14,34 @@ Plataforma web de **salas privadas para organizar partidas online de Mortal Komb
 >
 > Proyecto no oficial y sin afiliación con Warner Bros. Games ni NetherRealm Studios. Cada jugador necesita su propia copia legítima del juego.
 
+## Jugar ya: «Jugar desde esta web» (recomendado)
+
+Es la forma de jugar que no depende de los servidores de Warner Bros. ni de que el amigo tenga el juego:
+
+- **Anfitrión** (tiene MK9 en Steam, Windows): ejecuta el juego en su PC y la web transmite su pantalla al amigo por WebRTC. Un pequeño ayudante crea un **mando virtual de Xbox 360**, que el juego ve como el jugador 2.
+- **Invitado**: abre el enlace de la sala y juega con su mando o teclado. **No instala nada.**
+- **Es streaming**, como Parsec: el juego solo se ejecuta en el PC del anfitrión y el invitado recibe vídeo con algo de retardo.
+
+**Anfitrión, una sola vez:**
+1. Instala Python 3 desde <https://www.python.org/downloads/> y marca **«Add python.exe to PATH»**.
+2. En la sala, pulsa **Descargar ayudante (Windows)** y abre `mk9-ayudante.py` con doble clic. La primera vez instala `websockets` y `vgamepad`, y abre el instalador oficial del controlador **ViGEmBus**: acéptalo. Deja la ventana abierta mientras juegas.
+
+**Cada partida:**
+1. Anfitrión: abre MK9 en **modo ventana o ventana sin bordes**. Muchos juegos a pantalla completa exclusiva se capturan en negro.
+2. Crea la sala y envía el enlace a tu amigo. El método **«Jugar desde esta web»** viene seleccionado por defecto.
+3. Comprueba que en la sala aparece **«Ayudante: Conectado · mando virtual activo»**. Si el navegador pregunta si la web puede acceder a tu red local, pulsa **Permitir**.
+4. Pulsa **Transmitir mi pantalla** y elige la ventana de MK9. Para tener sonido, elige la pantalla completa y marca **«Compartir audio del sistema»**.
+5. En MK9, entra en un combate **versus local**: el jugador 2 es el mando virtual, que controla tu amigo.
+
+Si los botones del jugador 2 no coinciden en el juego, cámbialos en las opciones de controles de MK9. La sala muestra cómo se traduce el teclado del invitado a botones Xbox.
+
+**Qué está comprobado (`npm run test:stream`):**
+- la transmisión WebRTC de vídeo y audio entre dos navegadores;
+- que el teclado y el mando del invitado llegan al ayudante real como botones Xbox correctos;
+- la recuperación del vídeo al recargar la página.
+
+La pantalla, el mando del invitado y el mando ViGEm estaban simulados. **Falta vuestra primera prueba real en Windows con MK9.**
+
 **Índice:**
 1. [Funciones](#funciones)
 2. [Requisitos](#requisitos)
@@ -45,6 +73,7 @@ Plataforma web de **salas privadas para organizar partidas online de Mortal Komb
 | Prueba de mandos en vivo | Lo que pulsas (teclado o mando) se ilumina en la pantalla del rival en tiempo real, por P2P o por el servidor si el P2P falla. |
 | Controles | Teclado y mandos (Gamepad API): detección de mandos, asignación por acción y prueba en vivo. Se guarda en el navegador. **No cambia los controles del juego.** |
 | Chat de sala | Mensajes de texto y avisos del sistema (entradas, salidas, desconexiones). |
+| Jugar desde esta web | Transmisión WebRTC de la pantalla del anfitrión, mando o teclado del invitado enviado por P2P (o por el servidor si el P2P falla) y mando virtual de Xbox en el PC del anfitrión (`helper/mk9-ayudante.py`). |
 
 ## Requisitos
 
@@ -93,6 +122,7 @@ Plataforma web de **salas privadas para organizar partidas online de Mortal Komb
 | `npm run dev` | Arranca el servidor y lo reinicia al guardar cambios |
 | `npm test` | Pruebas automáticas del servidor (servidor real + clientes WebSocket reales) |
 | `npm run test:e2e` | Prueba con dos navegadores reales; requiere Playwright (ver [Pruebas](#pruebas)) |
+| `npm run test:stream` | Transmisión + mando virtual con el ayudante en modo prueba; requiere Playwright y `pip install "websockets>=13"` |
 
 **Probar solo en tu PC:** abre una ventana normal y otra de incógnito. Crea la sala en una y únete con el código en la otra. Cada ventana es un jugador.
 
@@ -243,7 +273,11 @@ Dentro de la sala, el anfitrión elige el método y la web muestra los pasos. Re
 | **Transmisión: Steam Remote Play Together** | **Sí:** solo el anfitrión ejecuta el juego | Solo el anfitrión | Sitios que recogen las categorías de Steam (SteamSpy) incluyen «Remote Play Together» para este juego. No lo hemos probado. |
 | **Transmisión: Parsec** | **Sí:** solo el anfitrión ejecuta el juego | Solo el anfitrión | Funciona con cualquier juego de PC; gratuito para uso personal. Es la opción con más probabilidades de funcionar si las demás fallan. |
 
-**Orden recomendado para la primera prueba:** online oficial → Remote Play Together → Parsec. Dentro de la sala, el anfitrión elige el método y la web muestra los pasos de cada uno.
+**Orden recomendado:**
+1. **«Jugar desde esta web»** (ver [Jugar ya](#jugar-ya-jugar-desde-esta-web-recomendado)): solo el anfitrión necesita el juego.
+2. Si queréis jugar sin streaming, cada uno con su copia: el online oficial.
+3. Remote Play Together.
+4. Parsec. Dentro de la sala, el anfitrión elige el método y la web muestra los pasos de cada uno.
 
 **Botón «Abrir MK9 en Steam»:** abre `steam://run/237110`, el identificador de *Mortal Kombat Komplete Edition* en Steam.
 - Si Steam está instalado y el juego en tu biblioteca, Steam lo abre (puede que el navegador pregunte antes si quieres abrir Steam).
@@ -255,7 +289,7 @@ No se incluyen, descargan ni modifican archivos del juego, ni se elude ninguna p
 
 ## Pruebas
 
-**Automáticas del servidor:** 23 pruebas: servidor real con clientes WebSocket reales, y el proveedor TURN con respuestas simuladas.
+**Automáticas del servidor:** 24 pruebas: servidor real con clientes WebSocket reales, y el proveedor TURN con respuestas simuladas.
 ```bash
 npm test
 ```
@@ -329,7 +363,12 @@ Detalles, y la lista para probar con dos PCs reales, en [`docs/PRUEBAS.md`](docs
 │       ├── controls.js     Teclado y mandos (Gamepad API)
 │       └── methods.js      Integración con el juego: métodos de conexión y lanzamiento
 ├── test/                   Pruebas del servidor y de TURN (npm test)
+├── helper/
+│   ├── mk9-ayudante.py     Ayudante del mando virtual (PC del anfitrión, Windows)
+│   └── test_ayudante.py    Pruebas del ayudante (python helper/test_ayudante.py)
+├── public/js/stream.js     Transmisión WebRTC y enlace con el ayudante
 ├── scripts/e2e-browser.cjs Prueba con dos navegadores (npm run test:e2e)
+├── scripts/e2e-stream.cjs  Prueba de transmisión + mando virtual (npm run test:stream)
 ├── render.yaml             Despliegue en Render (Blueprint)
 ├── Dockerfile              Despliegue con contenedor (Koyeb, Fly.io, VPS…)
 ├── .env.example            Variables de entorno de ejemplo (sin secretos)

@@ -70,7 +70,7 @@ export class RoomManager {
     const room = {
       code,
       hostId: null,
-      method: 'steam-online',
+      method: 'web-stream',
       players: new Map(),
       chat: [],
       createdAt: this.#now(),
