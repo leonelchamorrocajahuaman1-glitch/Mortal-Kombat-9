@@ -31,5 +31,10 @@ export const config = {
   // Salas sin actividad se eliminan pasado este tiempo.
   roomIdleMs: int('ROOM_IDLE_MS', 6 * 60 * 60 * 1000),
   maxPayloadBytes: 16 * 1024,
+  // Lista separada por comas, p. ej. "https://mk9-lobby.onrender.com". Vacía = cualquier origen.
+  allowedOrigins: (process.env.ALLOWED_ORIGINS ?? '')
+    .split(',')
+    .map((o) => o.trim().replace(/\/+$/, ''))
+    .filter(Boolean),
   iceServers: iceServers(),
 };

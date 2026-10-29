@@ -4,6 +4,13 @@
 
 const PING_EVERY_MS = 1000;
 
+// crypto.randomUUID solo existe en contextos seguros (HTTPS o localhost);
+// al abrir la web por IP de la red local (http://192.168.x.x) hace falta una alternativa.
+function sessionId() {
+  if (globalThis.crypto?.randomUUID) return crypto.randomUUID();
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+}
+
 export class PeerLink extends EventTarget {
   #pc = null;
   #channel = null;
@@ -25,18 +32,25 @@ export class PeerLink extends EventTarget {
 
   // Lado que inicia: crea la oferta.
   async start() {
-    this.#reset(crypto.randomUUID());
-    const channel = this.#pc.createDataChannel('lobby', { ordered: false, maxRetransmits: 0 });
-    this.#bindChannel(channel);
-    const offer = await this.#pc.createOffer();
-    await this.#pc.setLocalDescription(offer);
-    this.#sendSignal({ kind: 'offer', session: this.#session, sdp: this.#pc.localDescription });
+    try {
+      if (typeof RTCPeerConnection === 'undefined') throw new Error('WebRTC no disponible en este navegador');
+      this.#reset(sessionId());
+      const channel = this.#pc.createDataChannel('lobby', { ordered: false, maxRetransmits: 0 });
+      this.#bindChannel(channel);
+      const offer = await this.#pc.createOffer();
+      await this.#pc.setLocalDescription(offer);
+      this.#sendSignal({ kind: 'offer', session: this.#session, sdp: this.#pc.localDescription });
+    } catch (err) {
+      console.warn('[rtc] no se pudo iniciar la conexión P2P', err);
+      this.#setState('failed');
+    }
   }
 
   async handleSignal(data) {
     if (!data || typeof data !== 'object') return;
     try {
       if (data.kind === 'offer') {
+        if (typeof RTCPeerConnection === 'undefined') throw new Error('WebRTC no disponible en este navegador');
         this.#reset(data.session);
         await this.#pc.setRemoteDescription(data.sdp);
         await this.#flushCandidates();

@@ -1,0 +1,23 @@
+# Blueprint de Render (https://render.com/docs/blueprint-spec).
+# En Render: New → Blueprint → elige este repositorio. Plan gratuito, sin tarjeta.
+services:
+  - type: web
+    name: mk9-lobby-companion
+    runtime: node
+    plan: free
+    buildCommand: npm ci --omit=dev
+    startCommand: npm start
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: NODE_ENV
+        value: production
+      # Opcional: limita las conexiones WebSocket a tu propia URL de Render,
+      # p. ej. https://mk9-lobby-companion.onrender.com
+      - key: ALLOWED_ORIGINS
+        sync: false
+      # Opcional: JSON con servidores STUN/TURN propios para redes con NAT estricto.
+      - key: ICE_SERVERS
+        sync: false

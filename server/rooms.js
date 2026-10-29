@@ -221,7 +221,9 @@ export class RoomManager {
   sweepIdle(maxIdleMs) {
     const limit = this.#now() - maxIdleMs;
     for (const room of [...this.#rooms.values()]) {
-      if (room.lastActivity < limit) {
+      // Una sala con alguien conectado nunca se considera abandonada.
+      const anyoneConnected = [...room.players.values()].some((p) => p.connected);
+      if (!anyoneConnected && room.lastActivity < limit) {
         for (const p of [...room.players.values()]) {
           p.conn?.send(encode(SERVER.LEFT, { reason: 'idle' }));
           this.#removePlayer(room, p);

@@ -14,7 +14,7 @@ export const METHOD_GUIDES = {
       'Pulsad «Abrir MK9 en Steam» en los dos PCs.',
       'Dentro del juego, entrad en el modo online y cread una partida privada o invitad a vuestro amigo de Steam (Mayús+Tab abre la superposición de Steam).',
     ],
-    note: 'No está confirmado que el online de MK9 en PC siga activo: en 2020 se cerró el de PS3 y el juego se retiró de la tienda de Steam. Si no conecta, probad Steam Remote Play Together.',
+    note: 'Sin confirmar: el juego se retiró de la tienda de Steam en marzo de 2020 y ese mismo año se cerró el online de PS3. Sobre el PC hay informes contradictorios y no hemos encontrado ninguna confirmación reciente. Si el modo online no conecta, usad Steam Remote Play Together o Parsec.',
   },
   'remote-play': {
     streaming: true,
@@ -49,6 +49,6 @@ export const METHOD_GUIDES = {
       'Configurad una cuenta RPCN en RPCS3 (Configuración → Red) y abrid el juego.',
       'Entrad en el modo online del juego para buscar a vuestro rival.',
     ],
-    note: 'Experimental: no está verificado que MK9 funcione online con RPCN. Exige un PC potente.',
+    note: 'Muy experimental: no hemos encontrado constancia de que MK9 esté entre los juegos compatibles con RPCN, y los informes públicos de compatibilidad del emulador con este juego son antiguos. Exige un PC potente y hacer tú mismo el volcado de tu disco.',
   },
 };

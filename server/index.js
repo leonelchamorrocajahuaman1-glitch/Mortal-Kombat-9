@@ -28,9 +28,25 @@ const MIME = {
 // Mensajes permitidos por segundo y por conexión (con ráfaga).
 const RATE = { perSecond: 30, burst: 60 };
 
+// Cabeceras de seguridad para todas las respuestas HTTP.
+const SECURITY_HEADERS = {
+  'Content-Security-Policy':
+    "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; " +
+    "connect-src 'self' ws: wss:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
+  'X-Content-Type-Options': 'nosniff',
+  'Referrer-Policy': 'no-referrer',
+  'X-Frame-Options': 'DENY',
+};
+
 async function serveStatic(req, res) {
-  const url = new URL(req.url, 'http://localhost');
-  let pathname = decodeURIComponent(url.pathname);
+  let pathname;
+  try {
+    pathname = decodeURIComponent(new URL(req.url, 'http://localhost').pathname);
+  } catch {
+    // URL mal codificada (p. ej. "/%E0%A4%A"): sin esta protección tumbaba el proceso.
+    res.writeHead(400, { 'Content-Type': 'text/plain; charset=utf-8' }).end('Petición no válida');
+    return;
+  }
   if (pathname.endsWith('/')) pathname += 'index.html';
   const filePath = path.resolve(PUBLIC_DIR, '.' + pathname);
   if (!filePath.startsWith(PUBLIC_DIR + path.sep)) {
@@ -41,14 +57,16 @@ async function serveStatic(req, res) {
     const info = await stat(filePath);
     if (!info.isFile()) throw new Error('not a file');
     res.writeHead(200, {
+      ...SECURITY_HEADERS,
       'Content-Type': MIME[path.extname(filePath)] ?? 'application/octet-stream',
       'Content-Length': info.size,
       'Cache-Control': 'no-cache',
-      'X-Content-Type-Options': 'nosniff',
     });
-    createReadStream(filePath).pipe(res);
+    if (req.method === 'HEAD') res.end();
+    else createReadStream(filePath).on('error', () => res.destroy()).pipe(res);
   } catch {
-    res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' }).end('No encontrado');
+    if (!res.headersSent) res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
+    res.end('No encontrado');
   }
 }
 
@@ -67,10 +85,20 @@ export function startServer(options = {}) {
       res.end(JSON.stringify({ ok: true, rooms: rooms.roomCount, uptime: Math.round(process.uptime()) }));
       return;
     }
-    serveStatic(req, res);
+    serveStatic(req, res).catch((err) => {
+      console.error('[http] error inesperado', err);
+      if (!res.headersSent) res.writeHead(500);
+      res.end();
+    });
   });
 
-  const wss = new WebSocketServer({ server, path: '/ws', maxPayload: cfg.maxPayloadBytes });
+  const wss = new WebSocketServer({
+    server,
+    path: '/ws',
+    maxPayload: cfg.maxPayloadBytes,
+    // Con ALLOWED_ORIGINS solo se aceptan conexiones desde esas webs.
+    verifyClient: ({ origin }) => cfg.allowedOrigins.length === 0 || cfg.allowedOrigins.includes(origin),
+  });
 
   wss.on('connection', (ws) => {
     const conn = {
@@ -228,7 +256,8 @@ export function startServer(options = {}) {
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   const app = startServer();
   app.ready.then((port) => {
-    console.log(`MK9 Lobby Companion escuchando en http://localhost:${port}`);
+    console.log(`MK9 Lobby Companion escuchando en http://localhost:${port} (host ${config.host}, NODE_ENV=${process.env.NODE_ENV ?? 'development'})`);
+    if (config.allowedOrigins.length) console.log(`Orígenes permitidos: ${config.allowedOrigins.join(', ')}`);
     console.log('Pulsa Ctrl+C para detenerlo.');
   });
   const shutdown = () => app.close().then(() => process.exit(0));

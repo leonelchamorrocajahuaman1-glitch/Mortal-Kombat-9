@@ -11,10 +11,15 @@
   "scripts": {
     "start": "node server/index.js",
     "dev": "node --watch server/index.js",
-    "test": "node --test"
+    "test": "node --test",
+    "test:e2e": "node scripts/e2e-browser.cjs"
   },
   "dependencies": {
     "ws": "^8.18.0"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/leonelchamorrocajahuaman1-glitch/Mortal-Kombat-9.git"
+  }
 }

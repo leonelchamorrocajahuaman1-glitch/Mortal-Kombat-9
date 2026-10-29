@@ -1,48 +1,84 @@
 # Pruebas
 
-## Automáticas (`npm test`)
+## 1. Pruebas automáticas del servidor — `npm test`
 
-Levantan el servidor real y conectan clientes WebSocket reales. Comprueban:
-- crear sala y unirse
-- sala llena y código inexistente
-- sincronización de listo, perfil, método y chat
-- permisos del anfitrión
-- reenvío de la señalización WebRTC y del ping por relé
-- medición de latencia por latido
-- desconexión con puesto reservado y reanudación con token
-- caducidad del puesto
-- traspaso de anfitrión
-- borrado de salas vacías
-- validación de entradas
+16 pruebas con el servidor real y clientes WebSocket reales. Comprueban:
+- crear sala y unirse;
+- sala llena y código inexistente;
+- sincronización de listo, perfil, método y chat;
+- permisos del anfitrión;
+- reenvío de la señalización WebRTC y del ping por relé;
+- latencia medida por latido;
+- desconexión con puesto reservado y reanudación con token;
+- caducidad del puesto;
+- traspaso de anfitrión;
+- borrado de salas vacías;
+- validación de entradas;
+- URL mal codificada (devuelve 400 y el servidor no se cae);
+- cabeceras de seguridad y HEAD;
+- *path traversal*;
+- `ALLOWED_ORIGINS`;
+- limpieza de salas abandonadas.
 
-## Comprobado en desarrollo (dos navegadores Chromium independientes, mismo equipo)
+## 2. Prueba con dos navegadores — `npm run test:e2e`
 
-- Crear sala → invitar con enlace → unirse con «Jugar».
-- P2P WebRTC conectado y latencia medida en ambos lados.
-- Prueba de mandos: una tecla pulsada en B se ilumina en A vía P2P y se apaga al soltarla.
-- Listo en ambos → «¡Ambos listos!». El invitado no puede cambiar el método. El chat llega al rival.
-- Recarga de la página de B: vuelve a la misma sala y el P2P se restablece.
-- Corte de red de B: A ve «Desconectado · 60 s». Al volver la red, B se reconecta solo.
-- Diálogo de controles: detección de teclas en vivo y reasignación.
-- Sin desbordamiento horizontal a 360 y 390 px de ancho.
+Dos navegadores Chromium **independientes** (contextos separados, sin almacenamiento compartido) **en el mismo equipo**. 15 comprobaciones:
 
-**Aún no comprobado:**
-- dos PCs en redes distintas
-- mandos físicos
-- lanzamiento real del juego
+1. La página carga y el WebSocket conecta.
+2. Crear una sala.
+3. Unirse escribiendo el código.
+4. Abrir el enlace de invitación rellena el código; un tercer jugador recibe «sala llena».
+5. Conexión directa WebRTC (DataChannel) en ambos navegadores.
+6. Latencias: tú ↔ servidor, rival ↔ servidor, relé.
+7. Chat en los dos sentidos.
+8. Prueba de mandos en vivo: una tecla pulsada en B se ilumina en A (vía P2P) y se apaga al soltarla.
+9. Mando: un gamepad **virtual** inyectado en la Gamepad API se detecta, su botón ilumina la acción en A y en B, y se puede reasignar.
+10. «Listo» en ambos; solo el anfitrión cambia el método; la etiqueta streaming/local cambia en el otro navegador.
+11. El botón del juego apunta a `steam://run/237110` y, sin Steam, aparece el aviso.
+12. Recargar la página de B vuelve a la misma sala y rehace el P2P.
+13. Corte de red de B: A ve «Desconectado · 60 s» y B se reconecta solo.
+14. Vista móvil 390×844 sin desbordamiento horizontal.
+15. Ninguna página produce errores de JavaScript.
 
-## Fase 6 — lista para probar en dos PCs
+### Resultados registrados (29/10/2026, entorno de desarrollo Linux, Node 22, Chromium de Playwright)
 
-Pruebas de la web:
-1. [ ] El PC A arranca el servidor y lo publica (túnel o hosting, ver README).
-2. [ ] B abre el enlace de invitación desde otra red (por ejemplo, datos móviles compartidos).
-3. [ ] Ambos ven al rival «Conectado» y una latencia en «Directa P2P». Si pone «No disponible», anota el tipo de red: hace falta TURN.
-4. [ ] La prueba de mandos funciona en los dos sentidos con mando físico.
-5. [ ] Desactivar el Wi-Fi de B 10 s: A ve la cuenta atrás y B vuelve solo.
+| Ejecución | Resultado |
+|---|---|
+| `npm test` | 16/16 superadas |
+| `npm run test:e2e` contra el servidor local (HTTP) | 15/15 superadas |
+| `npm run test:e2e` tras un proxy TLS local (HTTPS + `wss://`, `NODE_ENV=production`, como el balanceador de Render) | 15/15 superadas |
+| Instalación desde cero (`git clone` + `npm ci` + `npm test`) | Superada |
 
-Pruebas del juego:
-6. [ ] «Abrir MK9 en Steam» abre el juego en ambos PCs.
-7. [ ] Online oficial: ¿conecta el modo online de MK9? Anotar el resultado y la fecha.
-8. [ ] Si no conecta: Remote Play Together o Parsec, y comparar la sensación con la latencia medida.
+### Qué NO cubren estas pruebas
 
-Apunta los resultados aquí para documentar qué método funciona hoy.
+- **Dos equipos en redes distintas.** En el mismo equipo, WebRTC conecta por la red local (`host`). Entre casas distintas hace falta atravesar NAT (`srflx`) o usar TURN (`relay`).
+- **Mandos físicos.** El mando virtual valida la lógica de la web, no los controladores de Windows ni un modelo concreto de mando.
+- **Abrir el juego de verdad.** El entorno de pruebas no tiene Steam ni MK9.
+- **El despliegue en Render.** No se pudo hacer desde el entorno de desarrollo. Cuando lo publiques, ejecuta la prueba contra tu URL:
+  ```bash
+  $env:BASE_URL="https://TU-URL"; npm run test:e2e
+  ```
+
+## 3. Lista para probar con dos PCs reales
+
+Hacedla con un amigo en **redes distintas**: otra casa, o uno de los dos con datos móviles compartidos.
+
+### Web
+
+1. [ ] La web está publicada (Render o túnel) y `https://TU-URL/health` responde `{"ok":true,...}`.
+2. [ ] PC A crea la sala; PC B abre el enlace de invitación y entra.
+3. [ ] Ambos ven al rival «Conectado» y un valor en «Directa P2P». Anotad la ruta (red local / directa / TURN). Si pone «No disponible», anotad el tipo de red: hace falta TURN.
+4. [ ] Latencia P2P medida: ____ ms (A) / ____ ms (B).
+5. [ ] El chat funciona en los dos sentidos.
+6. [ ] Mando físico: aparece en «Controles» y la prueba en vivo se ve en el otro PC. Modelo de mando: ______
+7. [ ] Desactivar el Wi-Fi de B 10 s: A ve la cuenta atrás y B vuelve solo.
+
+### Juego
+
+8. [ ] «Abrir MK9 en Steam» abre el juego en el PC A.
+9. [ ] Ídem en el PC B.
+10. [ ] Online oficial: ¿el modo online de MK9 conecta y permite invitar al amigo? Resultado y fecha: ______
+11. [ ] Si no: Remote Play Together. ¿Steam ofrece la opción para este juego? Resultado: ______
+12. [ ] Si no: Parsec. Resultado: ______
+
+Apuntad aquí los resultados para documentar qué método funciona hoy.

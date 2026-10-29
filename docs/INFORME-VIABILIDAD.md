@@ -44,3 +44,16 @@ Se construye un **Lobby Companion**: salas, invitaciones, estado de conexión, l
 - https://delistedgames.com/?p=10097
 - https://steamcommunity.com/app/237110/discussions/0/3150808675341450251
 - https://www.gamesradar.com/ps3-emulator-devs-have-a-massive-update-on-netplay-touting-online-support-for-co-op-metal-gear-classic-fighting-games-and-more
+
+## Actualización (octubre de 2026)
+
+- **Online de PC:** no se ha encontrado ninguna confirmación reciente de que siga activo. Las fuentes de 2020 se contradicen sobre si el cierre afectó solo a PS3. Hay que comprobarlo con el juego.
+- **RPCS3 + RPCN:** la lista de juegos activos de RPCN no incluye MK9. Los informes públicos de compatibilidad del emulador con este juego son de 2017–2018.
+- **Hosting de la web:** se elige Render (plan gratuito con WebSockets; desde febrero de 2026 los mensajes WebSocket cuentan como actividad). Koyeb queda como alternativa con el Dockerfile.
+
+Fuentes adicionales:
+- https://render.com/changelog/free-web-services-now-remain-active-while-receiving-websocket-messages
+- https://render.com/docs/free
+- https://www.rpcs3.net/rpcn
+- https://forums.rpcs3.net/printthread.php?tid=177156
+- https://eteknix.com/mortal-kombat-komplete-edition-is-given-a-fatality-on-steam/amp

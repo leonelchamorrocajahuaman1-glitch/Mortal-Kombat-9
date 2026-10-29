@@ -574,6 +574,18 @@ $('#profile-form').addEventListener('submit', (e) => {
   e.preventDefault();
   if (conn.send('update', { steam: $('#steam-id').value })) toast('Perfil guardado.', 'ok');
 });
+// steam:// no avisa si falla: si la página sigue en primer plano unos segundos, Steam no respondió.
+$('#launch-game').addEventListener('click', () => {
+  let left = false;
+  const onBlur = () => (left = true);
+  window.addEventListener('blur', onBlur, { once: true });
+  setTimeout(() => {
+    window.removeEventListener('blur', onBlur);
+    if (!left && document.visibilityState === 'visible' && document.hasFocus()) {
+      toast('¿No se abrió nada? Comprueba que Steam está instalado y abierto, y que MK9 está en tu biblioteca.');
+    }
+  }, 3000);
+});
 $('#method-select').addEventListener('change', (e) => conn.send('set-method', { method: e.target.value }));
 $('#chat-form').addEventListener('submit', (e) => {
   e.preventDefault();
@@ -646,6 +658,11 @@ function renderBindingsLive() {
 renderChips($('#input-self'), input.active);
 renderChips($('#input-peer'), state.peerInput);
 renderConnPill();
+
+if (!window.isSecureContext) {
+  // Fuera de HTTPS/localhost los navegadores limitan los mandos y el portapapeles.
+  toast('Abre la web con https:// (o en localhost) para que funcionen los mandos y el botón de copiar.', 'error');
+}
 
 const invited = new URLSearchParams(location.search).get('sala');
 if (invited && !state.token) {

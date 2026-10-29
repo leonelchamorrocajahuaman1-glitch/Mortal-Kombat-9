@@ -8,11 +8,13 @@ import { startServer } from '../server/index.js';
 
 let app;
 let url;
+let httpBase;
 
 before(async () => {
   app = startServer({ port: 0, host: '127.0.0.1', reconnectGraceMs: 400, heartbeatMs: 100, deadAfterMs: 2000 });
   const port = await app.ready;
   url = `ws://127.0.0.1:${port}/ws`;
+  httpBase = `http://127.0.0.1:${port}`;
 });
 
 after(() => app.close());
@@ -207,4 +209,70 @@ test('valida entradas: nombre vacío y JSON incorrecto', async () => {
   c.send('chat', { text: 'sin sala' });
   assert.equal((await c.next('error')).code, 'NOT_IN_ROOM');
   await c.close();
+});
+
+test('una URL mal codificada devuelve 400 y el servidor sigue vivo', async () => {
+  const bad = await fetch(`${httpBase}/%E0%A4%A`);
+  assert.equal(bad.status, 400);
+  const health = await fetch(`${httpBase}/health`);
+  assert.equal(health.status, 200);
+  assert.equal((await health.json()).ok, true);
+});
+
+test('sirve la web con cabeceras de seguridad y responde a HEAD sin cuerpo', async () => {
+  const res = await fetch(`${httpBase}/`);
+  assert.equal(res.status, 200);
+  assert.match(res.headers.get('content-type'), /text\/html/);
+  assert.match(res.headers.get('content-security-policy'), /default-src 'self'/);
+  assert.equal(res.headers.get('x-frame-options'), 'DENY');
+  const head = await fetch(`${httpBase}/js/app.js`, { method: 'HEAD' });
+  assert.equal(head.status, 200);
+  assert.equal(await head.text(), '');
+  assert.equal((await fetch(`${httpBase}/no-existe.js`)).status, 404);
+});
+
+test('no permite salir de la carpeta pública', async () => {
+  const net = await import('node:net');
+  const port = new URL(httpBase).port;
+  const raw = await new Promise((resolve, reject) => {
+    const sock = net.connect(port, '127.0.0.1', () => sock.write('GET /../server/config.js HTTP/1.1\r\nHost: x\r\nConnection: close\r\n\r\n'));
+    let data = '';
+    sock.on('data', (d) => (data += d));
+    sock.on('end', () => resolve(data));
+    sock.on('error', reject);
+  });
+  assert.doesNotMatch(raw, /^HTTP\/1\.1 200/);
+  assert.doesNotMatch(raw, /reconnectGraceMs/);
+});
+
+test('con ALLOWED_ORIGINS rechaza WebSockets de otras webs', async () => {
+  const strict = startServer({ port: 0, host: '127.0.0.1', allowedOrigins: ['https://mk9.example'] });
+  const port = await strict.ready;
+  const tryOrigin = (origin) =>
+    new Promise((resolve) => {
+      const ws = new WebSocket(`ws://127.0.0.1:${port}/ws`, { origin });
+      ws.once('open', () => {
+        ws.close();
+        resolve('open');
+      });
+      ws.once('error', () => resolve('rejected'));
+    });
+  assert.equal(await tryOrigin('https://mk9.example'), 'open');
+  assert.equal(await tryOrigin('https://otra-web.example'), 'rejected');
+  await strict.close();
+});
+
+test('la limpieza elimina salas abandonadas pero no las que tienen jugadores conectados', async () => {
+  const { RoomManager } = await import('../server/rooms.js');
+  const { SessionStore } = await import('../server/sessions.js');
+  let now = 0;
+  const rooms = new RoomManager({ sessions: new SessionStore(), graceMs: 1000, maxRooms: 10, now: () => now });
+  const conn = () => ({ send() {}, close() {} });
+  const active = rooms.createRoom(conn(), 'Activo');
+  const abandoned = rooms.createRoom(conn(), 'Ausente');
+  abandoned.player.connected = false;
+  now = 10_000;
+  rooms.sweepIdle(5_000);
+  assert.ok(rooms.getRoom(active.room.code), 'la sala con jugador conectado se mantiene');
+  assert.equal(rooms.getRoom(abandoned.room.code), null);
 });
