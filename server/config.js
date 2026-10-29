@@ -37,4 +37,7 @@ export const config = {
     .map((o) => o.trim().replace(/\/+$/, ''))
     .filter(Boolean),
   iceServers: iceServers(),
+  // TURN de Cloudflare (opcional). Defínelos solo en el panel del hosting, nunca en el repositorio.
+  turnKeyId: process.env.TURN_KEY_ID ?? '',
+  turnApiToken: process.env.TURN_KEY_API_TOKEN ?? '',
 };

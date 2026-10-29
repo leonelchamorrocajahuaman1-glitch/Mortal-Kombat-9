@@ -19,7 +19,7 @@
 | Salas, presencia, chat, estado | WebSocket (`ws`) | Necesita un servidor fiable y ordenado. Socket.IO no aporta nada imprescindible aquí y añade peso. |
 | Latencia real entre jugadores | WebRTC DataChannel (no ordenado, sin reintentos) | Mide la ruta directa entre los dos equipos, que es la que importa para un juego de lucha. |
 | Señalización WebRTC | Reenviada por el mismo WebSocket | No hace falta otro servicio. |
-| NAT traversal | STUN público gratuito; TURN opcional (`ICE_SERVERS`) | Prototipo sin servicios de pago. |
+| NAT traversal | STUN público gratuito; TURN opcional: Cloudflare con credenciales temporales (`TURN_KEY_ID`, `TURN_KEY_API_TOKEN`) o servidores propios (`ICE_SERVERS`) | Sin servicios de pago. El token de Cloudflare nunca sale del servidor (`server/turn.js`). |
 | WebAssembly / WebGL | No se usan | No aportan nada sin poder ejecutar el juego (ver informe). |
 
 ## Protocolo (JSON por WebSocket, ruta `/ws`)
@@ -38,7 +38,7 @@
 - `relay-pong {t}`
 
 **Servidor → cliente:**
-- `welcome {serverTime, iceServers, reconnectGraceMs, methods}`
+- `welcome {serverTime, iceServers, turn, reconnectGraceMs, methods}`: se envía cuando ya se tienen los servidores ICE (las credenciales TURN se renuevan a mitad de su vida)
 - `joined {token, playerId, room, chat}`
 - `room {room}`
 - `latency {players}`

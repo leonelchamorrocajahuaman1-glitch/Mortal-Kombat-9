@@ -182,3 +182,34 @@ export class PeerLink extends EventTarget {
     this.dispatchEvent(new CustomEvent('state', { detail: state }));
   }
 }
+
+// Diagnóstico de la red propia: qué tipos de candidato ICE se pueden obtener.
+//   host  -> solo dirección local
+//   srflx -> STUN ha visto tu IP pública: el P2P entre redes distintas suele funcionar
+//   relay -> hay un servidor TURN utilizable: funciona incluso con NAT estricto
+export async function probeIce(iceServers, timeoutMs = 5000) {
+  const found = new Set();
+  if (typeof RTCPeerConnection === 'undefined') return found;
+  const pc = new RTCPeerConnection({ iceServers });
+  try {
+    pc.createDataChannel('probe');
+    const done = new Promise((resolve) => {
+      const timer = setTimeout(resolve, timeoutMs);
+      pc.addEventListener('icecandidate', (event) => {
+        if (!event.candidate) {
+          clearTimeout(timer);
+          resolve();
+        } else if (event.candidate.type) {
+          found.add(event.candidate.type);
+        }
+      });
+    });
+    await pc.setLocalDescription(await pc.createOffer());
+    await done;
+  } catch {
+    /* sin WebRTC utilizable */
+  } finally {
+    pc.close();
+  }
+  return found;
+}

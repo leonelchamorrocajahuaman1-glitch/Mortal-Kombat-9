@@ -3,7 +3,7 @@
 import { ACTIONS, InputManager, describeBinding } from './controls.js';
 import { METHOD_GUIDES } from './methods.js';
 import { Connection } from './net.js';
-import { PeerLink } from './rtc.js';
+import { PeerLink, probeIce } from './rtc.js';
 
 const $ = (sel) => document.querySelector(sel);
 const STORE = { token: 'mk9lobby.token', name: 'mk9lobby.name' };
@@ -117,6 +117,9 @@ conn.addEventListener('message', ({ detail: msg }) => {
       state.welcome = msg;
       state.clockOffset = msg.serverTime - Date.now();
       fillMethodSelect();
+      runNetworkProbe();
+      // La bienvenida puede llegar después de entrar en la sala (credenciales TURN): arranca el P2P.
+      if (state.room) onRoomChanged();
       break;
     case 'joined':
       if (state.restoring) toast(`De vuelta en la sala ${msg.room.code}.`, 'ok');
@@ -242,6 +245,23 @@ function closePeer() {
   peer = null;
   peerFor = null;
   setPeerInput([], '');
+}
+
+// Diagnóstico de la red propia (una vez por página): ¿STUN ve la IP pública? ¿hay TURN?
+let probeStarted = false;
+async function runNetworkProbe() {
+  if (probeStarted || !state.welcome) return;
+  probeStarted = true;
+  const out = $('#m-net');
+  out.textContent = 'Comprobando…';
+  const types = await probeIce(state.welcome.iceServers);
+  let text;
+  if (types.has('relay')) text = 'Apta para P2P · TURN disponible';
+  else if (types.has('srflx')) text = state.welcome.turn ? 'Apta para P2P · TURN no responde' : 'Apta para P2P (sin TURN)';
+  else text = 'Solo red local: el P2P con otra red puede fallar';
+  out.textContent = text;
+  out.dataset.level = types.has('relay') || types.has('srflx') ? 'ok' : 'bad';
+  out.title = `Candidatos ICE obtenidos: ${[...types].join(', ') || 'ninguno'}`;
 }
 
 // Inicia la oferta el jugador con el id menor, para que solo uno de los dos la cree.

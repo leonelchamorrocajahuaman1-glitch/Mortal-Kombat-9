@@ -57,3 +57,15 @@ Fuentes adicionales:
 - https://www.rpcs3.net/rpcn
 - https://forums.rpcs3.net/printthread.php?tid=177156
 - https://eteknix.com/mortal-kombat-komplete-edition-is-given-a-fatality-on-steam/amp
+
+## Actualización (finales de octubre de 2026)
+
+- **Online de PC:** en un hilo del foro de Steam con respuestas de hace menos de un año, un jugador afirma que el online sigue funcionando (búsqueda en todo el mundo, poca gente). Es un informe anecdótico, no verificado.
+- **Remote Play Together:** SteamSpy y otros sitios que recogen las categorías de Steam lo incluyen para la app 237110. No se ha probado.
+- **Navegador:** sin cambios. No existe ninguna implementación de MK9 en el navegador.
+
+Fuentes:
+- https://steamcommunity.com/app/237110/discussions/0/690870825661970524/
+- https://www.steamspy.com/app/237110
+- https://developers.cloudflare.com/realtime/turn/faq/
+- https://developers.cloudflare.com/realtime/pricing/

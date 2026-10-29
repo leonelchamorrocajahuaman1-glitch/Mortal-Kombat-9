@@ -14,7 +14,7 @@ export const METHOD_GUIDES = {
       'Pulsad «Abrir MK9 en Steam» en los dos PCs.',
       'Dentro del juego, entrad en el modo online y cread una partida privada o invitad a vuestro amigo de Steam (Mayús+Tab abre la superposición de Steam).',
     ],
-    note: 'Sin confirmar: el juego se retiró de la tienda de Steam en marzo de 2020 y ese mismo año se cerró el online de PS3. Sobre el PC hay informes contradictorios y no hemos encontrado ninguna confirmación reciente. Si el modo online no conecta, usad Steam Remote Play Together o Parsec.',
+    note: 'Sin comprobar por nosotros: el juego se retiró de la tienda de Steam en marzo de 2020 y ese año se cerró el online de PS3. En un hilo del foro de Steam con respuestas de hace menos de un año, un jugador afirma que el online de PC sigue funcionando, aunque con pocas partidas. Para jugar con un amigo, usad la invitación de Steam en lugar de la búsqueda. Si no conecta, usad Remote Play Together o Parsec.',
   },
   'remote-play': {
     streaming: true,
@@ -26,7 +26,7 @@ export const METHOD_GUIDES = {
       'El anfitrión pulsa Mayús+Tab → Remote Play Together y elige a su amigo.',
       'El invitado acepta la invitación y controla al jugador 2 con su teclado o mando.',
     ],
-    note: 'Esto es streaming de vídeo: el juego solo se ejecuta en el PC del anfitrión y se añade latencia. No hemos podido confirmar que Steam lo habilite para este juego.',
+    note: 'Esto es streaming de vídeo: el juego solo se ejecuta en el PC del anfitrión y se añade latencia. Sitios que recogen las categorías de Steam (como SteamSpy) incluyen «Remote Play Together» para este juego; no lo hemos probado.',
   },
   parsec: {
     streaming: true,

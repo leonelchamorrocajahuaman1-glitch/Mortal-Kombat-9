@@ -112,6 +112,8 @@ El servidor se configura con variables de entorno; tienes un ejemplo comentado e
 | `ROOM_IDLE_MS` | `21600000` | Las salas sin nadie conectado e inactivas se eliminan pasado este tiempo (6 h) |
 | `ALLOWED_ORIGINS` | vacío | Lista separada por comas, p. ej. `https://mk9-lobby-companion.onrender.com`. Rechaza WebSockets abiertos desde otras webs. |
 | `ICE_SERVERS` | STUN de Google | JSON con servidores STUN/TURN para WebRTC |
+| `TURN_KEY_ID` | vacío | ID de la clave TURN de Cloudflare (ver [TURN](#turn-para-redes-con-nat-estricto)) |
+| `TURN_KEY_API_TOKEN` | vacío | **Secreto.** Token de esa clave TURN. Solo en el panel del hosting. |
 
 Ejemplo en PowerShell:
 ```bash
@@ -124,7 +126,7 @@ set PORT=8080 && npm start
 ```
 
 **Endpoints:**
-- `GET /health` → `{"ok":true,"rooms":N,"uptime":S}`, usado por el hosting para saber si el servicio está vivo.
+- `GET /health` → `{"ok":true,"rooms":N,"uptime":S,"turn":true|false}`, usado por el hosting para saber si el servicio está vivo. `turn` indica si TURN está configurado.
 - `/ws` → WebSocket.
 
 **Seguridad incluida:**
@@ -137,29 +139,62 @@ set PORT=8080 && npm start
 
 ### Opción recomendada: Render (gratuito)
 
-Render ejecuta servidores Node.js persistentes con WebSockets y HTTPS automático, sin tarjeta en el plan gratuito. Desde febrero de 2026 los mensajes WebSocket cuentan como actividad, así que una sala abierta mantiene el servidor despierto (el latido de la web envía uno cada 2 s). El repositorio incluye [`render.yaml`](render.yaml), así que no hay que configurar nada a mano.
+Render ejecuta servidores Node.js persistentes con WebSockets y HTTPS automático, sin tarjeta en el plan gratuito. El repositorio incluye [`render.yaml`](render.yaml) con toda la configuración, y la rama `claude/nice-carson-p57g80` es la rama por defecto del repositorio.
 
-1. Crea una cuenta en <https://render.com> con **Sign in with GitHub**.
-2. Autoriza a Render a leer el repositorio `Mortal-Kombat-9`.
-3. En el panel, elige **New → Blueprint**, selecciona el repositorio y la rama `claude/nice-carson-p57g80` (o `main` si la has fusionado), y pulsa **Apply**.
-4. Espera a que el despliegue termine en verde (2–4 minutos). Tu URL será del tipo `https://mk9-lobby-companion.onrender.com` (Render puede añadir un sufijo si el nombre está ocupado).
-5. Comprueba `https://TU-URL/health`: debe responder `{"ok":true,...}`.
-6. Opcional: en *Environment*, pon `ALLOWED_ORIGINS=https://TU-URL` y guarda.
+**Pasos exactos (unos 5 minutos):**
+1. Entra en <https://dashboard.render.com/register> y elige **GitHub** para registrarte. No hace falta tarjeta.
+2. Cuando GitHub pregunte, autoriza a Render. Si te deja elegir repositorios, marca **Only select repositories → `Mortal-Kombat-9`**.
+3. En el panel de Render: **New + → Blueprint**.
+4. Elige el repositorio `leonelchamorrocajahuaman1-glitch/Mortal-Kombat-9` y la rama `claude/nice-carson-p57g80`.
+5. Render lee `render.yaml` y muestra el servicio `mk9-lobby-companion` (plan *Free*). Pulsa **Deploy Blueprint** (en algunas versiones del panel, **Apply**).
+6. Abre el servicio y espera a que el estado sea **Live** (unos 2–4 minutos). La URL aparece arriba, del tipo `https://mk9-lobby-companion.onrender.com`; Render puede añadir un sufijo si el nombre está ocupado.
+7. Abre `https://TU-URL/health`: debe responder `{"ok":true,...}`. Después abre `https://TU-URL/` y crea una sala.
+8. Opcional, recomendado: **Environment → Add Environment Variable** con `ALLOWED_ORIGINS` = `https://TU-URL` (sin barra final), y las variables TURN del apartado siguiente. Guarda: Render redespliega solo.
 
-Si prefieres no usar el Blueprint, crea un **New → Web Service** con:
+Cada `git push` a la rama vuelve a desplegar automáticamente (`autoDeploy`).
+
+Si prefieres no usar el Blueprint, crea un **New + → Web Service** con:
+- **Runtime:** Node
 - **Build:** `npm ci --omit=dev`
 - **Start:** `npm start`
 - **Health check path:** `/health`
 - **Instance type:** Free
+- **Variables:** `NODE_VERSION=22` y `NODE_ENV=production`
 
-**Limitaciones del plan gratuito de Render:**
-- Tras 15 minutos sin tráfico el servicio se duerme. La primera visita después tarda alrededor de un minuto en despertarlo.
-- Un reinicio o un nuevo despliegue borra las salas de la memoria del servidor. La web lo detecta y los jugadores vuelven solos a la misma sala con el mismo código (comprobado en `npm run test:e2e`).
-
-Puedes probar el despliegue desde tu PC con la prueba de navegadores:
+**Comprobar el despliegue desde tu PC**, con las pruebas de navegador contra la web publicada (la prueba de reinicio se omite automáticamente):
 ```bash
 $env:BASE_URL="https://TU-URL"; npm run test:e2e
 ```
+
+### Plan gratuito de Render: qué esperar
+
+| Situación | Qué pasa | Qué hace la web |
+|---|---|---|
+| 15 min sin tráfico | Render duerme el servicio | Mientras haya una pestaña abierta, la web envía un mensaje WebSocket cada 2 s, que Render cuenta como actividad desde febrero de 2026, así que no se duerme durante una partida. |
+| Primera visita con el servicio dormido | Tarda alrededor de un minuto en despertar | Abre la web unos minutos antes de quedar con tu amigo. |
+| Reinicio o nuevo despliegue | Se pierden las salas, que viven en memoria | Los jugadores con la página abierta **vuelven solos a la misma sala con el mismo código** (comprobado en `npm run test:e2e`). Se pierden el chat anterior y el estado «Listo». |
+| Disco | Es temporal, se borra en cada reinicio | La app no guarda nada en disco: no afecta. |
+| Horas gratuitas | El plan gratuito incluye un número limitado de horas de instancia al mes por cuenta | Con un solo servicio no deberían agotarse. |
+| WebRTC | Render solo transporta HTTP y WebSocket | El tráfico P2P va directamente entre los navegadores y **no pasa por Render**. Si hace falta TURN, es un servicio externo (siguiente apartado). |
+
+Solución si estas limitaciones molestan: un plan de pago de Render (sin suspensión) o un VPS con el `Dockerfile`. Para jugar entre amigos, el plan gratuito basta.
+
+### TURN para redes con NAT estricto
+
+STUN, configurado por defecto, sirve en la mayoría de conexiones domésticas. Con CG-NAT (habitual en datos móviles y en algunos operadores de fibra), redes de empresa o universidad, la conexión directa falla y hace falta un servidor **TURN** que reenvíe el tráfico.
+
+La app admite el **TURN de Cloudflare**: según su documentación, los primeros 1.000 GB al mes son gratuitos. El servidor pide credenciales temporales y el token secreto nunca llega al navegador.
+
+1. Crea una cuenta gratuita en <https://dash.cloudflare.com>.
+2. En el panel, busca **Realtime → TURN Server** y crea una clave TURN. Obtendrás un **Token ID** y un **API Token**.
+3. En Render, en **Environment**, añade:
+   - `TURN_KEY_ID` = el Token ID
+   - `TURN_KEY_API_TOKEN` = el API Token
+4. Comprueba que `https://TU-URL/health` muestre `"turn":true`. En la sala, el panel **Tu red** debería decir «TURN disponible».
+
+La integración está probada con respuestas simuladas (`test/turn.test.js`). **No se ha probado contra Cloudflare real**, porque el entorno de desarrollo no tiene acceso. Si `/health` muestra `"turn":true` pero el panel no indica «TURN disponible», revisa los registros del servicio en Render (línea `[turn] …`): la app sigue funcionando solo con STUN.
+
+Alternativa: un [coturn](https://github.com/coturn/coturn) propio en un VPS, configurado con `ICE_SERVERS`.
 
 ### Alternativas
 
@@ -173,10 +208,10 @@ $env:BASE_URL="https://TU-URL"; npm run test:e2e
 
 ### HTTPS, NAT, cortafuegos y P2P
 
-- **HTTPS es necesario en Internet.** La web usa `wss://` automáticamente cuando se abre con `https://`. Los mandos (Gamepad API) y el botón «Copiar» solo funcionan en `https://` o en `localhost`. Si abres la web por IP (`http://192.168.x.x:3000`), aparece un aviso.
-- **WebSocket** funciona detrás del proxy HTTPS de Render: verificado localmente con un proxy TLS equivalente (ver [Pruebas](#pruebas)).
-- **WebRTC (P2P)** atraviesa la mayoría de routers domésticos con STUN. Falla con NAT simétrico o CG-NAT, frecuentes en redes móviles, de empresa o de universidad, y con cortafuegos que bloquean UDP. En ese caso la web muestra «No disponible», ofrece «Reintentar conexión P2P» y sigue midiendo por el relé del servidor. La solución definitiva es un servidor **TURN**: un [coturn](https://github.com/coturn/coturn) propio en un VPS, o un plan gratuito de un proveedor TURN. Se configura con `ICE_SERVERS` en el panel del hosting, nunca en el repositorio.
-- **Cortafuegos de Windows:** con `npm start` en tu PC, Windows puede preguntar si Node.js puede usar la red. Acéptalo para «Redes privadas» si vas a probar desde otro dispositivo de tu red local.
+- **HTTPS:** Render lo da automáticamente. La web usa `wss://` cuando se abre con `https://`. Los mandos (Gamepad API) y el botón «Copiar» solo funcionan en `https://` o en `localhost`; si se abre la web por IP (`http://192.168.x.x:3000`), aparece un aviso.
+- **WebSocket detrás del proxy HTTPS:** verificado localmente con un proxy TLS equivalente al de Render (ver [Pruebas](#pruebas)).
+- **WebRTC:** el panel **Tu red** de la sala dice a cada jugador, antes de que llegue su amigo, si su red permite P2P (STUN ve su IP pública) y si hay TURN. Si la conexión directa falla, la web muestra «No disponible», ofrece «Reintentar conexión P2P» y sigue midiendo por el relé del servidor; la sala, el chat y las invitaciones funcionan igual.
+- **Cortafuegos:** WebRTC usa UDP saliente. Algunos cortafuegos de empresa lo bloquean: TURN por `turns:…:443` (incluido en el TURN de Cloudflare) suele atravesarlos. Con `npm start` en tu PC, Windows puede preguntar si Node.js puede usar la red: acéptalo para «Redes privadas» solo si vas a probar desde otro dispositivo de tu red local.
 - **El juego usa su propia red.** La latencia P2P medida es una buena referencia de la ruta entre vuestros equipos, pero MK9, Steam o Parsec pueden usar otra ruta.
 
 ## Cómo invitar a un amigo
@@ -200,12 +235,15 @@ Mandos tipo Xbox y PlayStation usan la asignación estándar del navegador. Algu
 
 Dentro de la sala, el anfitrión elige el método y la web muestra los pasos. Resumen:
 
-| Método | ¿Streaming? | Quién necesita el juego | Estado (investigado en octubre de 2026) |
+| Forma de jugar | ¿Streaming? | Quién necesita el juego | Estado (investigado en octubre de 2026) |
 |---|---|---|---|
-| **Online oficial de MK9 (Steam)** | No: el juego corre en cada PC | Ambos, en su biblioteca de Steam | **Sin confirmar.** El juego se retiró de la tienda de Steam en marzo de 2020 y ese año se cerró el online de PS3. Sobre el PC hay informes contradictorios y no hemos encontrado ninguna confirmación reciente. Pruébalo primero. |
-| **Steam Remote Play Together** | **Sí:** solo el anfitrión ejecuta el juego | Solo el anfitrión | Funciona con juegos de Steam que tengan versus local. No hemos podido confirmar que Steam lo active para este juego. |
-| **Parsec** | **Sí:** solo el anfitrión ejecuta el juego | Solo el anfitrión | Funciona con cualquier juego de PC. Gratuito para uso personal. |
-| **RPCS3 + RPCN** | No: el emulador corre en cada PC | Ambos, con un volcado de **su propio** disco de PS3 | **Muy experimental.** No hay constancia de que MK9 sea compatible con RPCN. |
+| **En el navegador** | — | — | **No es posible.** MK9 es un programa nativo de Windows (Unreal Engine 3, Direct3D). Sin su código fuente, que no es público, no se puede portar a WebAssembly/WebGL, y no existe ninguna implementación que lo consiga. |
+| **Juego instalado: online oficial (Steam)** | No: el juego corre en cada PC | Ambos, en su biblioteca de Steam | **Por comprobar.** Retirado de la tienda de Steam en marzo de 2020; el online de PS3 cerró ese año. En un hilo del foro de Steam con respuestas de hace menos de un año, un jugador dice que el online de PC sigue funcionando, aunque con pocas partidas. No lo hemos verificado. Con un amigo, usad la invitación de Steam en vez de la búsqueda. |
+| **Emulación: RPCS3 + RPCN** | No: el emulador corre en cada PC | Ambos, con un volcado de **su propio** disco de PS3 | **Muy experimental.** No hay constancia de que MK9 esté entre los juegos que funcionan online con RPCN. Los informes públicos de compatibilidad del emulador con este juego son de 2017–2018. |
+| **Transmisión: Steam Remote Play Together** | **Sí:** solo el anfitrión ejecuta el juego | Solo el anfitrión | Sitios que recogen las categorías de Steam (SteamSpy) incluyen «Remote Play Together» para este juego. No lo hemos probado. |
+| **Transmisión: Parsec** | **Sí:** solo el anfitrión ejecuta el juego | Solo el anfitrión | Funciona con cualquier juego de PC; gratuito para uso personal. Es la opción con más probabilidades de funcionar si las demás fallan. |
+
+**Orden recomendado para la primera prueba:** online oficial → Remote Play Together → Parsec. Dentro de la sala, el anfitrión elige el método y la web muestra los pasos de cada uno.
 
 **Botón «Abrir MK9 en Steam»:** abre `steam://run/237110`, el identificador de *Mortal Kombat Komplete Edition* en Steam.
 - Si Steam está instalado y el juego en tu biblioteca, Steam lo abre (puede que el navegador pregunte antes si quieres abrir Steam).
@@ -217,12 +255,12 @@ No se incluyen, descargan ni modifican archivos del juego, ni se elude ninguna p
 
 ## Pruebas
 
-**Automáticas del servidor:** 17 pruebas con el servidor real y clientes WebSocket reales.
+**Automáticas del servidor:** 23 pruebas: servidor real con clientes WebSocket reales, y el proveedor TURN con respuestas simuladas.
 ```bash
 npm test
 ```
 
-**Con dos navegadores reales:** 16 comprobaciones.
+**Con dos navegadores reales:** 17 comprobaciones.
 ```bash
 npm install --no-save playwright
 ```
@@ -235,7 +273,7 @@ npm run test:e2e
 
 Comprueba:
 - crear una sala, unirse por código y por enlace, y que un tercero vea la sala llena;
-- WebRTC P2P, latencias y chat;
+- WebRTC P2P, latencias, diagnóstico de red y chat;
 - prueba de mandos en vivo (teclado y gamepad virtual) y reasignación;
 - «Listo», el método de conexión y el botón de Steam;
 - reconexión tras recargar, tras un corte de red y tras un reinicio del servidor;
@@ -265,7 +303,9 @@ Detalles, y la lista para probar con dos PCs reales, en [`docs/PRUEBAS.md`](docs
 | «Directa P2P: No disponible» | Red con NAT estricto o UDP bloqueado. Pulsa «Reintentar conexión P2P». Si persiste, la latencia se mide por el servidor. Para P2P garantizado, configura TURN (`ICE_SERVERS`). |
 | No aparece el mando | Pulsa un botón del mando con la pestaña activa. Usa `https://` o `localhost`. Prueba con Chrome o Edge. |
 | El botón «Abrir MK9 en Steam» no hace nada | Steam no está instalado o no está abierto, o el juego no está en tu biblioteca. Acepta el diálogo «¿Abrir Steam?» del navegador si aparece. |
-| El modo online de MK9 no encuentra partidas | Posiblemente los servidores ya no estén activos (sin confirmar). Cambia el método a Remote Play Together o Parsec. |
+| El modo online de MK9 no encuentra partidas | Hay muy pocos jugadores. Para jugar con tu amigo, invítalo desde Steam (Mayús+Tab) en lugar de buscar partida. Si tampoco conecta, cambia el método a Remote Play Together o Parsec. |
+| El panel «Tu red» dice «Solo red local» | Tu red o un cortafuegos bloquea UDP hacia STUN. Prueba otra red, o configura TURN en el servidor ([TURN](#turn-para-redes-con-nat-estricto)). |
+| `/health` muestra `"turn":true` pero no hay TURN | Revisa `TURN_KEY_ID` y `TURN_KEY_API_TOKEN` en Render y busca líneas `[turn]` en *Logs*. La app sigue funcionando con STUN. |
 | Render: el despliegue falla en `npm ci` | Asegúrate de que `package-lock.json` está en el repositorio (lo está) y de que la rama elegida es la correcta. |
 
 ## Estructura del proyecto
@@ -275,6 +315,7 @@ Detalles, y la lista para probar con dos PCs reales, en [`docs/PRUEBAS.md`](docs
 │   ├── index.js            HTTP estático + WebSocket, latido, límites, cabeceras de seguridad
 │   ├── rooms.js            Sistema de salas (crear, unirse, reconexión, anfitrión, limpieza)
 │   ├── sessions.js         Gestión de sesiones (tokens de reconexión)
+│   ├── turn.js             Servidores ICE: STUN y credenciales TURN temporales (Cloudflare)
 │   ├── protocol.js         Protocolo de mensajes y validación
 │   └── config.js           Configuración por variables de entorno
 ├── public/                 Interfaz web (sin frameworks ni build)
@@ -287,7 +328,7 @@ Detalles, y la lista para probar con dos PCs reales, en [`docs/PRUEBAS.md`](docs
 │       ├── rtc.js          Comunicación directa entre jugadores (WebRTC)
 │       ├── controls.js     Teclado y mandos (Gamepad API)
 │       └── methods.js      Integración con el juego: métodos de conexión y lanzamiento
-├── test/server.test.js     Pruebas del servidor (npm test)
+├── test/                   Pruebas del servidor y de TURN (npm test)
 ├── scripts/e2e-browser.cjs Prueba con dos navegadores (npm run test:e2e)
 ├── render.yaml             Despliegue en Render (Blueprint)
 ├── Dockerfile              Despliegue con contenedor (Koyeb, Fly.io, VPS…)

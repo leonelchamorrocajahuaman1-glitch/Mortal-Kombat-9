@@ -11,6 +11,7 @@ import { config } from './config.js';
 import { CLIENT, LIMITS, METHODS, SERVER, encode, parseMessage } from './protocol.js';
 import { RoomError, RoomManager } from './rooms.js';
 import { SessionStore } from './sessions.js';
+import { createIceProvider } from './turn.js';
 
 const PUBLIC_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'public');
 
@@ -74,6 +75,9 @@ export function startServer(options = {}) {
   const cfg = { ...config, ...options };
   const sessions = new SessionStore();
   const rooms = new RoomManager({ sessions, graceMs: cfg.reconnectGraceMs, maxRooms: cfg.maxRooms });
+  const ice =
+    cfg.iceProvider ??
+    createIceProvider({ staticServers: cfg.iceServers, turnKeyId: cfg.turnKeyId, turnApiToken: cfg.turnApiToken });
 
   const server = http.createServer((req, res) => {
     if (req.method !== 'GET' && req.method !== 'HEAD') {
@@ -82,7 +86,7 @@ export function startServer(options = {}) {
     }
     if (req.url === '/health') {
       res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ ok: true, rooms: rooms.roomCount, uptime: Math.round(process.uptime()) }));
+      res.end(JSON.stringify({ ok: true, rooms: rooms.roomCount, uptime: Math.round(process.uptime()), turn: ice.turnEnabled }));
       return;
     }
     serveStatic(req, res).catch((err) => {
@@ -212,13 +216,16 @@ export function startServer(options = {}) {
       if (!player) throw new RoomError('NOT_IN_ROOM', 'No estás en ninguna sala.');
     }
 
-    conn.send(
-      encode(SERVER.WELCOME, {
-        serverTime: Date.now(),
-        iceServers: cfg.iceServers,
-        reconnectGraceMs: cfg.reconnectGraceMs,
-        methods: METHODS,
-      }),
+    ice.get().then((iceServers) =>
+      conn.send(
+        encode(SERVER.WELCOME, {
+          serverTime: Date.now(),
+          iceServers,
+          turn: ice.turnEnabled,
+          reconnectGraceMs: cfg.reconnectGraceMs,
+          methods: METHODS,
+        }),
+      ),
     );
   });
 
@@ -267,6 +274,7 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   });
   app.ready.then((port) => {
     console.log(`MK9 Lobby Companion escuchando en http://localhost:${port} (host ${config.host}, NODE_ENV=${process.env.NODE_ENV ?? 'development'})`);
+    console.log(config.turnKeyId && config.turnApiToken ? 'TURN de Cloudflare: activado.' : 'TURN: no configurado (solo STUN).');
     if (config.allowedOrigins.length) console.log(`Orígenes permitidos: ${config.allowedOrigins.join(', ')}`);
     console.log('Pulsa Ctrl+C para detenerlo.');
   });

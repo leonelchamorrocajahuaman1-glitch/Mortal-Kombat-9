@@ -292,3 +292,18 @@ test('recrea una sala con su código anterior y avisa si ya existe (vuelta tras 
   await a.close();
   await b.close();
 });
+
+test('entrega los servidores ICE del proveedor y /health indica si hay TURN', async () => {
+  const provider = { turnEnabled: true, get: async () => [{ urls: ['turn:t.example:3478'], username: 'u', credential: 'c' }] };
+  const srv = startServer({ port: 0, host: '127.0.0.1', iceProvider: provider });
+  const port = await srv.ready;
+  const health = await (await fetch(`http://127.0.0.1:${port}/health`)).json();
+  assert.equal(health.turn, true);
+  const ws = new WebSocket(`ws://127.0.0.1:${port}/ws`);
+  const welcome = await new Promise((resolve) => ws.once('message', (raw) => resolve(JSON.parse(raw.toString()))));
+  assert.equal(welcome.type, 'welcome');
+  assert.equal(welcome.turn, true);
+  assert.deepEqual(welcome.iceServers[0].urls, ['turn:t.example:3478']);
+  ws.close();
+  await srv.close();
+});

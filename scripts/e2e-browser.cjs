@@ -161,6 +161,14 @@ const VIRTUAL_PAD = () => {
     return `ruta ${await text(A.page, '#input-route')}`;
   });
 
+  await check('Diagnóstico de red WebRTC (tipos de candidato ICE de este equipo)', async () => {
+    await A.page.waitForFunction(() => {
+      const t = document.querySelector('#m-net')?.textContent ?? '';
+      return t && t !== '—' && t !== 'Comprobando…';
+    }, null, { timeout: 15000 });
+    return `${await text(A.page, '#m-net')} (${await A.page.getAttribute('#m-net', 'title')})`;
+  });
+
   await check('Mando (gamepad virtual): detección, botón y reasignación', async () => {
     await A.page.evaluate(() => window.__pad.connect());
     await A.page.click('#open-controls');

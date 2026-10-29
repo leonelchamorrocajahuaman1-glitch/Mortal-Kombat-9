@@ -1,5 +1,10 @@
 # Blueprint de Render (https://render.com/docs/blueprint-spec).
-# En Render: New → Blueprint → elige este repositorio. Plan gratuito, sin tarjeta.
+# En Render: New → Blueprint → este repositorio → Apply. Plan gratuito, sin tarjeta.
+#
+# Variables opcionales: añádelas después en el panel (servicio → Environment), nunca aquí:
+#   TURN_KEY_ID / TURN_KEY_API_TOKEN  TURN de Cloudflare para redes con NAT estricto (secretos)
+#   ALLOWED_ORIGINS                   tu URL de Render, p. ej. https://mk9-lobby-companion.onrender.com
+#   ICE_SERVERS                       JSON con otros servidores STUN/TURN
 services:
   - type: web
     name: mk9-lobby-companion
@@ -14,10 +19,3 @@ services:
         value: "22"
       - key: NODE_ENV
         value: production
-      # Opcional: limita las conexiones WebSocket a tu propia URL de Render,
-      # p. ej. https://mk9-lobby-companion.onrender.com
-      - key: ALLOWED_ORIGINS
-        sync: false
-      # Opcional: JSON con servidores STUN/TURN propios para redes con NAT estricto.
-      - key: ICE_SERVERS
-        sync: false
