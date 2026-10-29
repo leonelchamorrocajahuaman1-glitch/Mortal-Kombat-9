@@ -60,10 +60,19 @@ const VIRTUAL_PAD = () => {
 (async () => {
   let base = process.env.BASE_URL?.replace(/\/+$/, '');
   let server = null;
+  let restartServer = null;
   if (!base) {
     const { startServer } = await import(pathToFileURL(path.join(__dirname, '..', 'server', 'index.js')).href);
-    server = startServer({ port: 0, host: '127.0.0.1', reconnectGraceMs: 60_000, deadAfterMs: 4000, heartbeatMs: 1000 });
-    base = `http://127.0.0.1:${await server.ready}`;
+    const opts = { host: '127.0.0.1', reconnectGraceMs: 60_000, deadAfterMs: 4000, heartbeatMs: 1000 };
+    server = startServer({ ...opts, port: 0 });
+    const port = await server.ready;
+    base = `http://127.0.0.1:${port}`;
+    // Simula un reinicio del hosting (redespliegue o el plan gratuito que se duerme): se pierden las salas.
+    restartServer = async () => {
+      await server.close();
+      server = startServer({ ...opts, port });
+      await server.ready;
+    };
   }
   console.log(`Probando ${base}\n`);
 
@@ -204,6 +213,21 @@ const VIRTUAL_PAD = () => {
     await waitText(A.page, '#m-p2p', /ms/, 20000);
     return `A vio «${seen}»`;
   });
+
+  if (restartServer) {
+    await check('Reinicio del servidor: ambos vuelven solos a la misma sala y al P2P', async () => {
+      await restartServer();
+      await waitText(A.page, '#toasts', /De vuelta en la sala/, 30000);
+      await B.page.waitForSelector('#view-room:not([hidden])', { timeout: 30000 });
+      await waitText(B.page, '#room-code', new RegExp(code), 30000);
+      await waitText(A.page, '#room-code', new RegExp(code), 30000);
+      await waitText(A.page, '#slot-1', /Conectado/, 30000);
+      await waitText(B.page, '#m-p2p', /ms/, 30000);
+      return `sala ${code} restaurada con los dos jugadores`;
+    });
+  } else {
+    console.log('  – Reinicio del servidor: se omite al probar un despliegue remoto (BASE_URL)');
+  }
 
   await check('Interfaz móvil (390×844) sin desbordamiento horizontal', async () => {
     const M = await newPlayer('M', { width: 390, height: 844 });

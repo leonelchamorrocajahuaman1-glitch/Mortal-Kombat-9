@@ -164,6 +164,22 @@ input:focus, select:focus { outline: none; border-color: var(--gold); box-shadow
 .steps b { font: 700 26px/1 var(--font-display); color: var(--gold); }
 .steps span { color: #cbc5ba; }
 
+.section-title { margin: 56px 0 6px; font: 700 clamp(22px, 3.4vw, 30px)/1.1 var(--font-display); letter-spacing: 0.1em; text-transform: uppercase; }
+.ways > .muted { margin: 0 0 18px; }
+.ways-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+.way {
+  --s: var(--muted);
+  position: relative; padding: 18px 18px 16px; border: 1px solid var(--panel-edge); border-top: 2px solid var(--s);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--s) 10%, transparent), transparent 60%), var(--panel);
+}
+.way[data-status="no"] { --s: var(--bad); }
+.way[data-status="maybe"] { --s: var(--warn); }
+.way[data-status="exp"] { --s: #b58cff; }
+.way[data-status="yes"] { --s: var(--ok); }
+.way-status { font: 700 11px/1 var(--font-display); letter-spacing: 0.16em; text-transform: uppercase; color: var(--s); }
+.way h3 { margin: 10px 0 6px; font: 700 19px/1.15 var(--font-display); letter-spacing: 0.06em; text-transform: uppercase; }
+.way p { margin: 0; font-size: 14px; color: #cbc5ba; }
+
 /* ---------- Sala ---------- */
 .room-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px; }
 .room-code {

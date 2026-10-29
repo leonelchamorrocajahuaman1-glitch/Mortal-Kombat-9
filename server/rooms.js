@@ -51,13 +51,21 @@ export class RoomManager {
     return this.#rooms.get(code) ?? null;
   }
 
-  createRoom(conn, name) {
+  // `requestedCode` permite recrear una sala con su código anterior cuando el servidor se ha
+  // reiniciado (las salas viven en memoria; en el plan gratuito de Render ocurre a menudo).
+  createRoom(conn, name, requestedCode) {
     if (this.#rooms.size >= this.#maxRooms) {
       throw new RoomError('SERVER_FULL', 'El servidor ha alcanzado el máximo de salas. Inténtalo más tarde.');
     }
     let code;
-    do code = generateCode();
-    while (this.#rooms.has(code));
+    if (requestedCode != null) {
+      code = normalizeCode(requestedCode);
+      if (!code) throw new RoomError('BAD_REQUEST', 'Código de sala no válido.');
+      if (this.#rooms.has(code)) throw new RoomError('CODE_TAKEN', 'Esa sala ya existe.');
+    } else {
+      do code = generateCode();
+      while (this.#rooms.has(code));
+    }
 
     const room = {
       code,

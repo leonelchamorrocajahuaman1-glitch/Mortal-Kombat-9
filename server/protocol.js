@@ -3,7 +3,7 @@
 // la lógica de salas vive en rooms.js.
 
 export const CLIENT = Object.freeze({
-  CREATE: 'create', // { name }
+  CREATE: 'create', // { name, code? }  (code: recrear una sala tras un reinicio del servidor)
   JOIN: 'join', // { code, name }
   RESUME: 'resume', // { token }
   LEAVE: 'leave', // {}

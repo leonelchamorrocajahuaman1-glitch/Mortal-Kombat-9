@@ -17,6 +17,7 @@ const state = {
   serverRtt: {}, // playerId -> ms (medido por el servidor)
   relayRtt: null,
   pending: null, // acción a enviar en cuanto haya conexión
+  restoring: null, // { code, step } mientras se vuelve a la sala tras perder la sesión
   peerInput: new Set(),
   bothReadyNotified: false,
 };
@@ -118,6 +119,8 @@ conn.addEventListener('message', ({ detail: msg }) => {
       fillMethodSelect();
       break;
     case 'joined':
+      if (state.restoring) toast(`De vuelta en la sala ${msg.room.code}.`, 'ok');
+      state.restoring = null;
       state.token = msg.token;
       safeSet(sessionStorage, STORE.token, msg.token);
       state.playerId = msg.playerId;
@@ -164,12 +167,36 @@ conn.addEventListener('message', ({ detail: msg }) => {
 });
 
 function handleError({ code, message }) {
-  toast(message, 'error');
   if (code === 'SESSION_EXPIRED') {
+    // El servidor se reinició o pasó el tiempo de reconexión: se intenta volver a la misma sala.
     const oldCode = state.room?.code ?? new URLSearchParams(location.search).get('sala');
+    const name = nameInput.value.trim() || safeGet(localStorage, STORE.name);
     resetToHome();
     if (oldCode) $('#join-code').value = oldCode;
+    if (oldCode && name) {
+      toast(`Se perdió la sesión (¿reinicio del servidor?). Volviendo a la sala ${oldCode}…`);
+      state.restoring = { code: oldCode, name, step: 'join' };
+      conn.send('join', { code: oldCode, name });
+    } else {
+      toast(message, 'error');
+    }
+    return;
   }
+  const r = state.restoring;
+  if (r && r.step === 'join' && code === 'ROOM_NOT_FOUND') {
+    // La sala ya no existe en el servidor: se recrea con el mismo código para que el amigo vuelva solo.
+    r.step = 'create';
+    conn.send('create', { name: r.name, code: r.code });
+    return;
+  }
+  if (r && r.step === 'create' && code === 'CODE_TAKEN') {
+    // El rival la recreó un instante antes: nos unimos.
+    r.step = 'rejoin';
+    conn.send('join', { code: r.code, name: r.name });
+    return;
+  }
+  state.restoring = null;
+  toast(message, 'error');
 }
 
 function resetToHome() {

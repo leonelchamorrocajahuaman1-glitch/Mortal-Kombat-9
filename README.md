@@ -38,6 +38,8 @@ Plataforma web de **salas privadas para organizar partidas online de Mortal Komb
 | Estado de conexión | Indicador en la barra superior (WebSocket) y estado de cada jugador en su tarjeta. |
 | Latencia | Tú ↔ servidor, rival ↔ servidor, **directa P2P** (WebRTC) y vía servidor (relé). Incluye una valoración para juegos de lucha. |
 | Desconexiones | Si se cae un jugador, su puesto se reserva 60 s con cuenta atrás. Al recargar o recuperar la red, se reconecta solo. |
+| Reinicio del servidor | Si el hosting se reinicia o se duerme (frecuente en el plan gratuito de Render), los dos jugadores vuelven **solos** a la misma sala con el mismo código. |
+| Formas de jugar | La portada explica qué es posible y qué no: navegador, juego instalado, emulación y transmisión remota. |
 | Listo / método | Cada jugador marca «Listo». El anfitrión elige el método de conexión, y la web indica si usa streaming o juego local. |
 | Abrir el juego | Botón `steam://run/237110`, que abre MK9 instalado en Steam. Si Steam no responde en 3 s, la web lo avisa. |
 | Prueba de mandos en vivo | Lo que pulsas (teclado o mando) se ilumina en la pantalla del rival en tiempo real, por P2P o por el servidor si el P2P falla. |
@@ -152,7 +154,7 @@ Si prefieres no usar el Blueprint, crea un **New → Web Service** con:
 
 **Limitaciones del plan gratuito de Render:**
 - Tras 15 minutos sin tráfico el servicio se duerme. La primera visita después tarda alrededor de un minuto en despertarlo.
-- Un reinicio o un nuevo despliegue borra las salas abiertas, porque viven en memoria. Los jugadores vuelven a la portada con el código rellenado y basta con crear la sala otra vez.
+- Un reinicio o un nuevo despliegue borra las salas de la memoria del servidor. La web lo detecta y los jugadores vuelven solos a la misma sala con el mismo código (comprobado en `npm run test:e2e`).
 
 Puedes probar el despliegue desde tu PC con la prueba de navegadores:
 ```bash
@@ -215,12 +217,12 @@ No se incluyen, descargan ni modifican archivos del juego, ni se elude ninguna p
 
 ## Pruebas
 
-**Automáticas del servidor:** 16 pruebas con el servidor real y clientes WebSocket reales.
+**Automáticas del servidor:** 17 pruebas con el servidor real y clientes WebSocket reales.
 ```bash
 npm test
 ```
 
-**Con dos navegadores reales:** 15 comprobaciones.
+**Con dos navegadores reales:** 16 comprobaciones.
 ```bash
 npm install --no-save playwright
 ```
@@ -236,7 +238,7 @@ Comprueba:
 - WebRTC P2P, latencias y chat;
 - prueba de mandos en vivo (teclado y gamepad virtual) y reasignación;
 - «Listo», el método de conexión y el botón de Steam;
-- reconexión tras recargar y tras un corte de red;
+- reconexión tras recargar, tras un corte de red y tras un reinicio del servidor;
 - vista móvil y ausencia de errores de JavaScript.
 
 Detalles, y la lista para probar con dos PCs reales, en [`docs/PRUEBAS.md`](docs/PRUEBAS.md).
@@ -246,7 +248,7 @@ Detalles, y la lista para probar con dos PCs reales, en [`docs/PRUEBAS.md`](docs
 - La web **no ejecuta, controla ni sincroniza el juego**: eso lo hace el netcode de MK9 o el streaming. La «prueba de mandos en vivo» sincroniza entradas entre navegadores, no dentro del juego.
 - El online de MK9 en PC no tiene rollback. Con latencias altas (más de 150 ms) se nota mucho.
 - Sin servidor TURN, la conexión P2P puede fallar en redes con NAT estricto (ver arriba).
-- Las salas viven en memoria: un reinicio del servidor las borra.
+- Las salas viven en memoria: tras un reinicio del servidor, los jugadores con la página abierta vuelven solos a su sala, pero se pierden el historial del chat y el estado «Listo».
 - En el plan gratuito de Render, el primer acceso tras 15 minutos de inactividad tarda alrededor de un minuto.
 - Las pruebas automáticas usan dos navegadores en un mismo equipo y un mando virtual. Faltan la prueba entre dos PCs de redes distintas y la prueba con mandos físicos (ver `docs/PRUEBAS.md`).
 
@@ -258,7 +260,7 @@ Detalles, y la lista para probar con dos PCs reales, en [`docs/PRUEBAS.md`](docs
 | PowerShell: `…no se puede cargar porque la ejecución de scripts está deshabilitada` | Cambia la terminal de VS Code a **Command Prompt** (flecha junto a `+`), o ejecuta una vez `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`. |
 | `Error: listen EADDRINUSE :::3000` | Otro programa usa el puerto 3000 (quizá otro `npm start`). Ciérralo o usa otro puerto: `$env:PORT=3001; npm start`. |
 | La barra superior se queda en «Reconectando…» | El servidor está apagado, o en Render se está despertando (espera alrededor de un minuto). Comprueba `/health`. |
-| «La sesión anterior ha caducado» | El servidor se reinició o pasaron más de 60 s desconectado. El código queda rellenado: vuelve a crear o unirte a la sala. |
+| «Se perdió la sesión… Volviendo a la sala» | El servidor se reinició o estuviste más de 60 s desconectado. La web vuelve sola a la sala; si no puede (por ejemplo, porque otra persona ocupó tu puesto), el código queda rellenado para unirte manualmente. |
 | «La sala ya tiene dos jugadores» | Ya hay dos personas dentro. Si una eres tú en otra pestaña, ciérrala: cada pestaña cuenta como un jugador. |
 | «Directa P2P: No disponible» | Red con NAT estricto o UDP bloqueado. Pulsa «Reintentar conexión P2P». Si persiste, la latencia se mide por el servidor. Para P2P garantizado, configura TURN (`ICE_SERVERS`). |
 | No aparece el mando | Pulsa un botón del mando con la pestaña activa. Usa `https://` o `localhost`. Prueba con Chrome o Edge. |

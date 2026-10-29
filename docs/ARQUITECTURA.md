@@ -25,7 +25,7 @@
 ## Protocolo (JSON por WebSocket, ruta `/ws`)
 
 **Cliente → servidor:**
-- `create {name}`
+- `create {name, code?}`
 - `join {code,name}`
 - `resume {token}`
 - `leave`
@@ -49,7 +49,9 @@
 - `left`
 - `error {code,message}`
 
-**Códigos de error:** `ROOM_NOT_FOUND`, `ROOM_FULL`, `SESSION_EXPIRED`, `NOT_HOST`, `NOT_IN_ROOM`, `BAD_REQUEST`, `RATE_LIMITED`, `SERVER_FULL`, `INTERNAL`.
+**Códigos de error:** `ROOM_NOT_FOUND`, `ROOM_FULL`, `SESSION_EXPIRED`, `NOT_HOST`, `NOT_IN_ROOM`, `BAD_REQUEST`, `RATE_LIMITED`, `SERVER_FULL`, `INTERNAL`, `CODE_TAKEN`.
+
+**Vuelta tras un reinicio del servidor:** si `resume` devuelve `SESSION_EXPIRED`, el cliente envía `join` con el código anterior. Si recibe `ROOM_NOT_FOUND`, envía `create {code}` para recrear la sala con el mismo código. Si el rival se adelantó (`CODE_TAKEN`), vuelve a enviar `join`.
 
 ## Sesiones y reconexión
 

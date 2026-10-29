@@ -2,7 +2,7 @@
 
 ## 1. Pruebas automáticas del servidor — `npm test`
 
-16 pruebas con el servidor real y clientes WebSocket reales. Comprueban:
+17 pruebas con el servidor real y clientes WebSocket reales. Comprueban:
 - crear sala y unirse;
 - sala llena y código inexistente;
 - sincronización de listo, perfil, método y chat;
@@ -18,11 +18,12 @@
 - cabeceras de seguridad y HEAD;
 - *path traversal*;
 - `ALLOWED_ORIGINS`;
-- limpieza de salas abandonadas.
+- limpieza de salas abandonadas;
+- recrear una sala con su código anterior (`CODE_TAKEN` si ya existe).
 
 ## 2. Prueba con dos navegadores — `npm run test:e2e`
 
-Dos navegadores Chromium **independientes** (contextos separados, sin almacenamiento compartido) **en el mismo equipo**. 15 comprobaciones:
+Dos navegadores Chromium **independientes** (contextos separados, sin almacenamiento compartido) **en el mismo equipo**. 16 comprobaciones:
 
 1. La página carga y el WebSocket conecta.
 2. Crear una sala.
@@ -37,16 +38,17 @@ Dos navegadores Chromium **independientes** (contextos separados, sin almacenami
 11. El botón del juego apunta a `steam://run/237110` y, sin Steam, aparece el aviso.
 12. Recargar la página de B vuelve a la misma sala y rehace el P2P.
 13. Corte de red de B: A ve «Desconectado · 60 s» y B se reconecta solo.
-14. Vista móvil 390×844 sin desbordamiento horizontal.
-15. Ninguna página produce errores de JavaScript.
+14. Reinicio real del servidor (se pierden las salas en memoria): A y B vuelven solos a la misma sala y rehacen el P2P. Solo con servidor local.
+15. Vista móvil 390×844 sin desbordamiento horizontal.
+16. Ninguna página produce errores de JavaScript.
 
 ### Resultados registrados (29/10/2026, entorno de desarrollo Linux, Node 22, Chromium de Playwright)
 
 | Ejecución | Resultado |
 |---|---|
-| `npm test` | 16/16 superadas |
-| `npm run test:e2e` contra el servidor local (HTTP) | 15/15 superadas |
-| `npm run test:e2e` tras un proxy TLS local (HTTPS + `wss://`, `NODE_ENV=production`, como el balanceador de Render) | 15/15 superadas |
+| `npm test` | 17/17 superadas |
+| `npm run test:e2e` contra el servidor local (HTTP) | 16/16 superadas |
+| `npm run test:e2e` tras un proxy TLS local (HTTPS + `wss://`, `NODE_ENV=production`, como el balanceador de Render) | 15/15 superadas (la prueba de reinicio se omite porque necesita controlar el servidor local) |
 | Instalación desde cero (`git clone` + `npm ci` + `npm test`) | Superada |
 
 ### Qué NO cubren estas pruebas

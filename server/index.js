@@ -152,7 +152,7 @@ export function startServer(options = {}) {
             break;
           case CLIENT.CREATE:
             if (player) rooms.leave(player);
-            enterRoom(rooms.createRoom(conn, msg.name));
+            enterRoom(rooms.createRoom(conn, msg.name, msg.code));
             break;
           case CLIENT.JOIN:
             if (player) rooms.leave(player);
@@ -230,6 +230,7 @@ export function startServer(options = {}) {
         ws.terminate();
         continue;
       }
+      if (ws.readyState !== WebSocket.OPEN) continue;
       ws.pingSentAt = now;
       ws.ping();
     }
@@ -238,7 +239,8 @@ export function startServer(options = {}) {
 
   const sweeper = setInterval(() => rooms.sweepIdle(cfg.roomIdleMs), 60_000);
 
-  const ready = new Promise((resolve) => {
+  const ready = new Promise((resolve, reject) => {
+    server.once('error', reject);
     server.listen(cfg.port, cfg.host, () => resolve(server.address().port));
   });
 
@@ -255,6 +257,14 @@ export function startServer(options = {}) {
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   const app = startServer();
+  app.ready.catch((err) => {
+    if (err.code === 'EADDRINUSE') {
+      console.error(`El puerto ${config.port} ya está en uso (¿hay otro "npm start" abierto?). Ciérralo o usa otro: PORT=3001`);
+    } else {
+      console.error('No se pudo arrancar el servidor:', err.message);
+    }
+    process.exit(1);
+  });
   app.ready.then((port) => {
     console.log(`MK9 Lobby Companion escuchando en http://localhost:${port} (host ${config.host}, NODE_ENV=${process.env.NODE_ENV ?? 'development'})`);
     if (config.allowedOrigins.length) console.log(`Orígenes permitidos: ${config.allowedOrigins.join(', ')}`);

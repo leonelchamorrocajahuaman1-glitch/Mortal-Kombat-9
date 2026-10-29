@@ -276,3 +276,19 @@ test('la limpieza elimina salas abandonadas pero no las que tienen jugadores con
   assert.ok(rooms.getRoom(active.room.code), 'la sala con jugador conectado se mantiene');
   assert.equal(rooms.getRoom(abandoned.room.code), null);
 });
+
+test('recrea una sala con su código anterior y avisa si ya existe (vuelta tras reinicio)', async () => {
+  const a = await client();
+  const b = await client();
+  a.send('create', { name: 'Ana', code: 'abc234' });
+  const joined = await a.next('joined');
+  assert.equal(joined.room.code, 'ABC234');
+  b.send('create', { name: 'Beto', code: 'ABC234' });
+  assert.equal((await b.next('error')).code, 'CODE_TAKEN');
+  b.send('join', { code: 'ABC234', name: 'Beto' });
+  assert.equal((await b.next('joined')).room.players.length, 2);
+  b.send('create', { name: 'Beto', code: 'O0O0O0' });
+  assert.equal((await b.next('error')).code, 'BAD_REQUEST');
+  await a.close();
+  await b.close();
+});
